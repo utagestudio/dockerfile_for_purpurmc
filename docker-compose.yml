@@ -1,0 +1,17 @@
+name: purpur
+services:
+  purpur:
+    container_name: purpur
+    build: .
+    image: purpur_image
+    volumes:
+      - purpur_volume:/opt/minecraft
+    ports:
+      - 25565:25565
+    command: start
+    stop_signal: SIGINT
+    stop_grace_period: 10s
+    environment:
+      TZ: Asia/Tokyo
+volumes:
+  purpur_volume:
