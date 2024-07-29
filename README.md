@@ -1,6 +1,6 @@
 # Require
 - Docker
-- DOcker compose
+- Docker compose
 
 # Setup
 ```$ docker-compose build```
