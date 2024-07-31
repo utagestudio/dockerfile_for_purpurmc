@@ -6,7 +6,7 @@ RUN apt-get update \
 RUN mkdir -p /opt/minecraft
 WORKDIR /opt/minecraft
 RUN curl https://api.purpurmc.org/v2/purpur/1.21/latest/download -o purpur-1.21.jar
-RUN java -Xms8G -Xmx8G -jar /opt/minecraft/purpur-1.21.jar --nogui \
+RUN java -jar /opt/minecraft/purpur-1.21.jar --nogui \
     && sed -i s/eula=false/eula=true/ eula.txt
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh 
