@@ -18,6 +18,10 @@ start_command() {
     tmux new-session -d -s $TMUX_SESSION
     tmux send-keys -t $TMUX_SESSION 'JAVA_MEMORY_MAX=$JAVA_MEMORY_MAX JAVA_MEMORY_MIN=$JAVA_MEMORY_MIN /run.sh' C-m
 
+    while check_server_status; do
+      sleep 1
+    done
+
     log "Application started in tmux session"
 }
 
@@ -59,10 +63,16 @@ check_server_status() {
 
 trap 'log "Received SIGTERM/SIGINT"; stop_command; log "Exiting"; exit 0' SIGTERM SIGINT
 
-start_command
-
-while check_server_status; do
-    sleep 1
-done
+case "$1" in
+  start)
+    start_command
+    ;;
+  stop)
+    stop_command
+    ;;
+  *)
+    exec "$@"
+    ;;
+esac
 
 log "Entrypoint script exiting"
