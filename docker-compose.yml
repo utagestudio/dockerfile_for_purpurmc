@@ -14,5 +14,7 @@ services:
     stop_grace_period: 30s
     environment:
       TZ: Asia/Tokyo
+      JAVA_MEMORY_MAX: 8G
+      JAVA_MEMORY_MIN: 8G
 volumes:
   purpur_volume:

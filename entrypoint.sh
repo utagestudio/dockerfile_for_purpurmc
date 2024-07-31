@@ -16,7 +16,8 @@ start_command() {
     log "Starting the application..."
     copy_file $SETUP_DIR $WORK_DIR 'Setup: '
     tmux new-session -d -s $TMUX_SESSION
-    tmux send-keys -t $TMUX_SESSION '/run.sh' C-m
+    tmux send-keys -t $TMUX_SESSION 'JAVA_MEMORY_MAX=$JAVA_MEMORY_MAX JAVA_MEMORY_MIN=$JAVA_MEMORY_MIN /run.sh' C-m
+
     log "Application started in tmux session"
 }
 
