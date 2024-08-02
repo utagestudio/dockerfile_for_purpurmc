@@ -12,7 +12,14 @@ log() {
     echo "$message" >&2
     echo $1
 }
-
+# init
+init_command() {
+    log "Initializing the application..."
+    tmux new-session -d -s $TMUX_SESSION
+    tmux send-keys -t $TMUX_SESSION 'java -jar /opt/minecraft/purpur-1.21.jar --nogui' C-m
+    sleep 20
+    stop_command
+}
 # start
 start_command() {
     log "Starting the application..."
@@ -93,6 +100,9 @@ check_server_status() {
 trap 'log "Received SIGTERM/SIGINT"; stop_command; log "Exiting"; exit 0' SIGTERM SIGINT
 
 case "$1" in
+  init)
+    init_command
+    ;;
   start)
     start_command
     ;;
