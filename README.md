@@ -46,6 +46,18 @@ Please wait a few seconds for the server to stop completely.
 
 停止には数秒かかることがあります。
 
+## Backup / バックアップ
+### If the server is running / サーバーが稼働中の場合
+```bash
+$ docker-compose exec -it purpur /entrypoint.sh backup
+```
+
+### If the server is stopped / サーバーが停止している場合
+```bash
+$ docker-compose run --rm purpur backup
+```
+
+
 ## Remove Containers and Network / コンテナとネットワークの削除
 
 ```bash
