@@ -48,9 +48,9 @@ backup_command () {
     TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
     BACKUP_FILE="$BACKUP_DIR/worlds_backup_$TIMESTAMP.tar.gz"
 
-    if tmux_command has-session -t $TMUX_SESSION 2>/dev/null; then
+    if tmux has-session -t $TMUX_SESSION 2>/dev/null; then
       log "Sending save-all command to the server..."
-      tmux_command send-keys -t $TMUX_SESSION 'save-all' C-m
+      tmux send-keys -t $TMUX_SESSION 'save-all' C-m
       sleep 10
     fi
 
