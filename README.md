@@ -1,7 +1,6 @@
 # Minecraft MOD Server Setup Guide
-This repository provides a guide to easily set up a Minecraft MOD server (Purpur server) using Docker and Docker Compose.
-
-このリポジトリでは、DockerとDocker Composeを使用して簡単にMinecraft MODサーバー（Purpurサーバー）を立ち上げる方法を説明します。
+- This repository provides a guide to easily set up a Minecraft MOD server (Purpur server) using Docker and Docker Compose.
+  - このリポジトリでは、DockerとDocker Composeを使用して簡単にMinecraft MODサーバー（Purpurサーバー）を立ち上げる方法を説明します。
 
 ## Requirements / 必要条件
 - Docker
@@ -15,23 +14,20 @@ $ docker-compose build
 ```
 
 ### 2. Obtain Configuration Files / 設定ファイルを取得
-Run the following command to get the configuration files in the ./setup directory:
-   
-次のコマンドで./setupディレクトリに設定ファイルを取得します。
+- Run the following command to get the configuration files in the ./setup directory:
+  - 次のコマンドで./setupディレクトリに設定ファイルを取得します。
 
 ```bash
 $ docker-compose run --rm purpur init
 ```
 
 ### 3. Edit Configuration Files / 設定ファイルを編集
-Edit the obtained configuration files (server.properties, spigot.yml, etc.) as needed.
-
-取得した設定ファイル（server.properties, spigot.ymlなど）を編集します。
+- Edit the obtained configuration files (server.properties, spigot.yml, etc.) as needed.
+  - 取得した設定ファイル（server.properties, spigot.ymlなど）を編集します。
 
 ### 4. Start the Purpur Server / サーバーを起動
-Start the Purpur server in detached mode:
-
-以下のコマンドでPurpurサーバーをデタッチモードで起動します。
+- Start the Purpur server in detached mode:
+  - 以下のコマンドでPurpurサーバーをデタッチモードで起動します。
 
 ```bash
 $ docker-compose up -d
@@ -42,9 +38,8 @@ $ docker-compose up -d
 ```bash
 $ docker-compose stop
 ```
-Please wait a few seconds for the server to stop completely.
-
-停止には数秒かかることがあります。
+- Please wait a few seconds for the server to stop completely.
+  - 停止には数秒かかることがあります。
 
 ## Backup / バックアップ
 ### If the server is running / サーバーが稼働中の場合
@@ -65,13 +60,13 @@ $ docker-compose down
 ```
 
 ## Shell Access / Shell アクセス
-### If the server is running: / サーバーが稼働中の場合
+### If the server is running / サーバーが稼働中の場合
 
 ```bash
 $ docker-compose exec -it purpur /bin/bash
 ```
 
-### If the server is stopped: / サーバーが停止している場合
+### If the server is stopped / サーバーが停止している場合
 
 ```bash
 $ docker-compose run --rm purpur /bin/bash
@@ -83,6 +78,6 @@ $ docker-compose run --rm purpur /bin/bash
 - It is recommended to keep Docker and Docker Compose updated to the latest versions.
   - DockerとDocker Composeのバージョンを最新に保つことをお勧めします。
 
-That's it! Enjoy your Minecraft gameplay!
-
-以上でセットアップは完了です。快適なMinecraftプレイをお楽しみください！
+---
+- That's it! Enjoy your Minecraft gameplay!
+  - 以上でセットアップは完了です。快適なMinecraftプレイをお楽しみください！
