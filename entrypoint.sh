@@ -15,8 +15,8 @@ log() {
 start_command() {
     log "Starting the application..."
     copy_file $SETUP_DIR $WORK_DIR 'Setup: '
-    tmux new-session -d -s $TMUX_SESSION
-    tmux send-keys -t $TMUX_SESSION 'JAVA_MEMORY_MAX=$JAVA_MEMORY_MAX JAVA_MEMORY_MIN=$JAVA_MEMORY_MIN /run.sh' C-m
+    tmux_command new-session -d -s $TMUX_SESSION
+    tmux_command send-keys -t $TMUX_SESSION 'JAVA_MEMORY_MAX=$JAVA_MEMORY_MAX JAVA_MEMORY_MIN=$JAVA_MEMORY_MIN /run.sh' C-m
 
     while check_server_status; do
       sleep 1
@@ -28,13 +28,13 @@ start_command() {
 #stop
 stop_command() {
     log "Stopping the application..."
-    tmux send-keys -t $TMUX_SESSION "stop" C-m
+    tmux_command send-keys -t $TMUX_SESSION "stop" C-m
     sleep 10
     log "Current directory: $(pwd)"
     copy_file $WORK_DIR $SETUP_DIR 'Cleanup: '
     log "Copy attempts completed."
 
-    tmux has-session -t $TMUX_SESSION 2>/dev/null && tmux kill-session -t $TMUX_SESSION
+    tmux_command has-session -t $TMUX_SESSION 2>/dev/null && tmux_command kill-session -t $TMUX_SESSION
 
     log "Stop command completed"
 }
@@ -54,11 +54,18 @@ copy_file() {
 }
 
 check_server_status() {
-    if ! tmux has-session -t $TMUX_SESSION 2>/dev/null; then
+    if ! tmux_command has-session -t $TMUX_SESSION 2>/dev/null; then
         log "Tmux session ended. Exiting..."
         return 1
     fi
     return 0
+}
+
+tmux_command () {
+  if ! tmux $@; then
+    log "Failed to execute tmux command: $@"
+    return 1
+  fi
 }
 
 trap 'log "Received SIGTERM/SIGINT"; stop_command; log "Exiting"; exit 0' SIGTERM SIGINT
