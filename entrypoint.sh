@@ -3,9 +3,11 @@ set -e
 SETUP_DIR="../setup"
 WORK_DIR="."
 TMUX_SESSION="purpur"
+BACKUP_DIR="/opt/backup"
+WORLDS=("world" "world_nether" "world_the_end")
 
 log() {
-     local message="[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+    local message="[$(date '+%Y-%m-%d %H:%M:%S')] $1"
     echo "$message" >> /var/log/entrypoint.log
     echo "$message" >&2
     echo $1
@@ -37,6 +39,33 @@ stop_command() {
     tmux_command has-session -t $TMUX_SESSION 2>/dev/null && tmux_command kill-session -t $TMUX_SESSION
 
     log "Stop command completed"
+}
+
+#backup
+backup_command () {
+    log "Starting backup process..."
+    mkdir -p $BACKUP_DIR
+    TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+    BACKUP_FILE="$BACKUP_DIR/worlds_backup_$TIMESTAMP.tar.gz"
+
+    if tmux_command has-session -t $TMUX_SESSION 2>/dev/null; then
+      log "Sending save-all command to the server..."
+      tmux_command send-keys -t $TMUX_SESSION 'save-all' C-m
+      sleep 10
+    fi
+
+    log "Creating backup archive..."
+    if tar -czf $BACKUP_FILE -C $WORK_DIR ${WORLDS[@]}; then
+      log "Backup created successfully: $BACKUP_FILE"
+    else
+      log "Failed to create backup"
+      return 1
+    fi
+
+    log "Cleaning up old backups..."
+    ls -t $BACKUP_DIR/worlds_backup_*.tar.gz | tail -n +6 | xargs -r rm
+
+    log "Backup process completed"
 }
 
 copy_file() {
@@ -76,6 +105,9 @@ case "$1" in
     ;;
   stop)
     stop_command
+    ;;
+  backup)
+    backup_command
     ;;
   *)
     exec "$@"
