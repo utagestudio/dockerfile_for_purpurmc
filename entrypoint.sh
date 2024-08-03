@@ -98,7 +98,8 @@ copy_file() {
     cp $src/*.yml $dest/ 2>/dev/null || log "$log_prefix Failed to copy YAML files"
     cp -r $src/config $dest/ 2>/dev/null || log "$log_prefix Failed to copy config directory"
     cp $src/server.properties $dest/ 2>/dev/null || log "$log_prefix Failed to copy server.properties"
-    
+    mv $src/ops.txt $dest/ 2>/dev/null || log "$log_prefix Failed to move server.properties"
+
     log "$log_prefix Copy attempts completed."
     ls -l $dest/ >> /var/log/entrypoint.log
 }
