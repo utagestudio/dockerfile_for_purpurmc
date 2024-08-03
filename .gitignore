@@ -2,3 +2,4 @@
 !/setup/.gitkeep
 /backup/*
 !/backup/.gitkeep
+.idea
