@@ -3,6 +3,8 @@ services:
   purpur:
     container_name: purpur
     build: .
+    env_file:
+      - .env
     image: purpur_image
     volumes:
       - purpur_volume:/opt/minecraft
@@ -13,9 +15,5 @@ services:
     command: start
     stop_signal: SIGINT
     stop_grace_period: 30s
-    environment:
-      TZ: Asia/Tokyo
-      JAVA_MEMORY_MAX: 8G
-      JAVA_MEMORY_MIN: 8G
 volumes:
   purpur_volume:
