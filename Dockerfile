@@ -3,10 +3,13 @@ RUN apt-get update \
     && apt-get -y upgrade \
     && apt-get -qq install -y --no-install-recommends openjdk-21-jdk curl tmux
 
+ARG VERSION
+ENV VERSION=${VERSION}
+
 RUN mkdir -p /opt/minecraft
 WORKDIR /opt/minecraft
-RUN curl https://api.purpurmc.org/v2/purpur/1.21/latest/download -o purpur-1.21.jar
-RUN java -jar /opt/minecraft/purpur-1.21.jar --nogui \
+RUN curl https://api.purpurmc.org/v2/purpur/${VERSION}/latest/download -o purpur-${VERSION}.jar
+RUN java -jar /opt/minecraft/purpur-${VERSION}.jar --nogui \
     && sed -i s/eula=false/eula=true/ eula.txt
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh 

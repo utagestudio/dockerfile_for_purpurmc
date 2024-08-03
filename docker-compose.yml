@@ -2,7 +2,11 @@ name: purpur
 services:
   purpur:
     container_name: purpur
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - VERSION=${VERSION}
     env_file:
       - .env
     image: purpur_image
