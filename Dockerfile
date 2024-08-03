@@ -9,8 +9,7 @@ ENV VERSION=${VERSION}
 RUN mkdir -p /opt/minecraft
 WORKDIR /opt/minecraft
 RUN curl https://api.purpurmc.org/v2/purpur/${VERSION}/latest/download -o purpur-${VERSION}.jar
-RUN java -jar /opt/minecraft/purpur-${VERSION}.jar --nogui \
-    && sed -i s/eula=false/eula=true/ eula.txt
+RUN java -jar /opt/minecraft/purpur-${VERSION}.jar --nogui
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh 
 COPY run.sh /run.sh

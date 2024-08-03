@@ -12,9 +12,22 @@ log() {
     echo "$message" >&2
     echo $1
 }
+
+update_eula() {
+  if [ "$EULA" = "true" ]; then
+    echo "Accepting Minecraft EULA..."
+    sed -i s/eula=.*/eula=true/ eula.txt
+  else
+    echo "Not accepting Minecraft EULA. Server will not start."
+    sed -i s/eula=.*/eula=false/ eula.txt
+    exit 1
+  fi
+}
+
 # init
 init_command() {
     log "Initializing the application..."
+    update_eula
     tmux new-session -d -s $TMUX_SESSION
     tmux send-keys -t $TMUX_SESSION 'java -jar /opt/minecraft/purpur-1.21.jar --nogui' C-m
     sleep 20
@@ -23,6 +36,7 @@ init_command() {
 # start
 start_command() {
     log "Starting the application..."
+    update_eula
     copy_file $SETUP_DIR $WORK_DIR 'Setup: '
     tmux new-session -d -s $TMUX_SESSION
     tmux send-keys -t $TMUX_SESSION 'JAVA_MEMORY_MAX=$JAVA_MEMORY_MAX JAVA_MEMORY_MIN=$JAVA_MEMORY_MIN /run.sh' C-m
