@@ -52,6 +52,19 @@ $ docker-compose exec -it purpur /entrypoint.sh backup
 $ docker-compose run --rm purpur backup
 ```
 
+## Update / アップデート
+- First, change the value of `VERSION` specified in the `.env` file.
+  - まず、.env に記載の `VERSION` の値を変更してください。
+### If the server is running / サーバーが稼働中の場合
+```bash
+$ docker-compose exec -it purpur /entrypoint.sh update
+```
+
+### If the server is stopped / サーバーが停止している場合
+```bash
+$ docker-compose run --rm purpur update
+```
+
 
 ## Remove Containers and Network / コンテナとネットワークの削除
 

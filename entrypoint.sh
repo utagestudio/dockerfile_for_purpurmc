@@ -6,6 +6,11 @@ TMUX_SESSION="purpur"
 BACKUP_DIR="/opt/backup"
 WORLDS=("world" "world_nether" "world_the_end")
 
+JAR_DIRECTORY="/opt/minecraft"
+JAR_FILE_PREFIX="purpur-"
+JAR_FILE_SUFFIX=".jar"
+
+
 log() {
     local message="[$(date '+%Y-%m-%d %H:%M:%S')] $1"
     echo "$message" >> /var/log/entrypoint.log
@@ -29,7 +34,7 @@ init_command() {
     log "Initializing the application..."
     update_eula
     tmux new-session -d -s $TMUX_SESSION
-    tmux send-keys -t $TMUX_SESSION "java -jar /opt/minecraft/purpur-${VERSION}.jar --nogui" C-m
+    tmux send-keys -t $TMUX_SESSION "java -jar ${JAR_DIRECTORY}/${JAR_FILE_PREFIX}${VERSION}${JAR_FILE_SUFFIX} --nogui" C-m
     sleep 20
     stop_command
 }
@@ -89,6 +94,19 @@ backup_command () {
     log "Backup process completed"
 }
 
+# update
+update_command () {
+  if [ -f "${JAR_DIRECTORY}/${JAR_FILE_PREFIX}${VERSION}${JAR_FILE_SUFFIX}" ]; then
+    log "Version $VERSION is already installed. No update needed."
+  else
+    log "Version $VERSION is not installed. Installing now."
+
+    log "Installing new version: ${VERSION}"
+    curl -L -o "$JAR_DIRECTORY/${JAR_FILE_PREFIX}${VERSION}${JAR_FILE_SUFFIX}" "https://api.purpurmc.org/v2/purpur/${VERSION}/latest/download"
+    log "Version ${VERSION} installed successfully."
+  fi
+}
+
 copy_file() {
     local src=$1
     local dest=$2
@@ -126,6 +144,9 @@ case "$1" in
     ;;
   backup)
     backup_command
+    ;;
+  update)
+    update_command
     ;;
   *)
     exec "$@"

@@ -11,8 +11,7 @@ WORKDIR /opt/minecraft
 RUN curl https://api.purpurmc.org/v2/purpur/${VERSION}/latest/download -o purpur-${VERSION}.jar
 RUN java -jar /opt/minecraft/purpur-${VERSION}.jar --nogui
 
-RUN apt-get -y remove curl \
-    && apt-get -y autoremove \
+RUN apt-get -y autoremove \
     && apt-get -y autoclean \
     && rm -rf /var/lib/apt/lists/*
 
