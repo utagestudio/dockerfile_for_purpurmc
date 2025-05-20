@@ -29,7 +29,7 @@ init_command() {
     log "Initializing the application..."
     update_eula
     tmux new-session -d -s $TMUX_SESSION
-    tmux send-keys -t $TMUX_SESSION 'java -jar /opt/minecraft/purpur-1.21.jar --nogui' C-m
+    tmux send-keys -t $TMUX_SESSION "java -jar /opt/minecraft/purpur-${VERSION}.jar --nogui" C-m
     sleep 20
     stop_command
 }
