@@ -2,6 +2,11 @@
 - This repository provides a guide to easily set up a Minecraft MOD server (Purpur server) using Docker and Docker Compose.
   - このリポジトリでは、DockerとDocker Composeを使用して簡単にMinecraft MODサーバー（Purpurサーバー）を立ち上げる方法を説明します。
 
+## Limitations / 制限事項
+- The use of this Docker image and related components is at your own risk.
+  - この Docker Image 等の使用は自己責任です
+ 
+
 ## Requirements / 必要条件
 - Docker
 - Docker compose
