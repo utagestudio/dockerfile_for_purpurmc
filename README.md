@@ -32,6 +32,10 @@
 ```bash
 $ docker-compose build
 ```
+もしくは
+```bash
+$ make build
+```
 
 ### 2. Obtain Configuration Files / 設定ファイルを取得
 - Run the following command to get the configuration files in the ./setup directory:
@@ -39,6 +43,10 @@ $ docker-compose build
 
 ```bash
 $ docker-compose run --rm purpur init
+```
+もしくは
+```bash
+$ make init
 ```
 
 ### 3. Edit Configuration Files / 設定ファイルを編集
@@ -52,12 +60,21 @@ $ docker-compose run --rm purpur init
 ```bash
 $ docker-compose up -d
 ```
+もしくは
+```bash
+$ make start
+```
 
 ## Stop the Server / サーバーの停止
 
 ```bash
 $ docker-compose stop
 ```
+もしくは
+```bash
+$ make stop
+```
+
 - Please wait a few seconds for the server to stop completely.
   - 停止には数秒かかることがあります。
 
@@ -70,6 +87,10 @@ $ docker-compose exec -it purpur /entrypoint.sh backup
 ### If the server is stopped / サーバーが停止している場合
 ```bash
 $ docker-compose run --rm purpur backup
+```
+もしくは
+```bash
+$ make backup
 ```
 
 ## Update / アップデート
@@ -84,6 +105,10 @@ $ docker-compose exec -it purpur /entrypoint.sh update
 ```bash
 $ docker-compose run --rm purpur update
 ```
+もしくは
+```bash
+$ make update
+```
 
 
 ## Remove Containers and Network / コンテナとネットワークの削除
@@ -91,6 +116,12 @@ $ docker-compose run --rm purpur update
 ```bash
 $ docker-compose down
 ```
+もしくは
+```bash
+$ make remove
+```
+
+- `make remove-all` を実行すると、保存されているデータも削除されます。
 
 ## Shell Access / Shell アクセス
 ### If the server is running / サーバーが稼働中の場合
@@ -98,11 +129,19 @@ $ docker-compose down
 ```bash
 $ docker-compose exec -it purpur /bin/bash
 ```
+もしくは
+```bash
+$ make bash
+```
 
 ### If the server is stopped / サーバーが停止している場合
 
 ```bash
 $ docker-compose run --rm purpur /bin/bash
+```
+もしくは
+```bash
+$ make bash-run
 ```
 
 ## Notes / 注意点
