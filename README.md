@@ -12,6 +12,21 @@
 - Docker compose
 
 ## Setup Instructions / セットアップ手順
+### 0. Fill in Environment Information / 環境情報を記入
+1. Change the file name of `.env.sample` to `.env`.
+   - `.env.sample` のファイル名を `.env` に変更する
+2. Open the `.env` file and modify each item.
+   - `.env` を開き、各項目を書き換えてください。
+
+| Item Name / 項目名 | Description / 内容                                                                                                        |
+|-----------------|-------------------------------------------------------------------------------------------------------------------------|
+| VERSION         | The version of the Minecraft server to install.<br/>インストールするマインクラフトサーバーのバージョン                                                |
+| TZ              | Timezone ID. Probably unused.<br/>タイムゾーンID。未使用な気がする。<br/>https://www.hulft.com/help/ja-jp/WebFT-V3/COM-ADM/Content/WEBFT_ADM_COM/TimeZone/timezonelist.htm |
+| JAVA_MEMORY_MAX | The maximum memory size the Minecraft server can use. Make sure it does not exceed the server machine's memory size. Deducting about 4GB for system usage is recommended.<br/>マイクラサーバーが使用していいメモリサイズの最大値。マイクラサーバーが実行されているサーバーマシンのメモリサイズを超えないように注意。サーバーマシン自体もメモリ使えるように、搭載メモリ-4GBくらいがいいんじゃないかな。        |
+| JAVA_MEMORY_MIN | The minimum memory size reserved for the Minecraft server. At least 2GB is recommended. It is generally advised to set the same value as `JAVA_MEMORY_MAX`. <br/>マイクラサーバーのために確保するメモリサイズの最小値。最低でも2GBは必要だと思う。一般的に JAVA_MEMORY_MAX と同じにすると良いと言われている。                                       |
+| EULA            | Agreement to the Minecraft server's usage terms. If you cannot agree, the server cannot be used.<br/> To agree, change it to `true`.<br/>マイクラサーバーの利用規約へ同意するかどうか。同意できないなら使用できない。<br/>同意する場合は `true` に書き換える。<br/> https://www.minecraft.net/ja-jp/eula             |
+
+
 ### 1. Build the Docker Image / イメージをビルド
 
 ```bash
