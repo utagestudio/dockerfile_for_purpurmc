@@ -1,3 +1,5 @@
+.PHONY: build init start stop remove remove-all backup update bash bash-run
+
 build:
 	docker compose build
 
