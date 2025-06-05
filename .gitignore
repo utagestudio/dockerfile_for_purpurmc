@@ -3,3 +3,4 @@
 /backup/*
 !/backup/.gitkeep
 .idea
+.env
