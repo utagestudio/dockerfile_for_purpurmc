@@ -28,6 +28,6 @@ services:
       - .env
     volumes:
       - purpur_volume:/opt/minecraft
-    restart: always
+#    restart: always
 volumes:
   purpur_volume:
