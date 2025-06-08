@@ -1,0 +1,8 @@
+# FROM gcr.io/distroless/python3-debian12
+FROM gcr.io/distroless/python3-debian12:debug
+
+# pip install requests したほうがいいらしい
+RUN pip install requests
+COPY ./log_watcher.py /log_watcher.py
+
+ENTRYPOINT ["python3", "/log_watcher.py"]

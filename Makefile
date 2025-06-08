@@ -13,10 +13,10 @@ stop:
 	docker compose stop
 
 remove:
-	docker compose down
+	docker compose down --remove-orphans
 
 remove-all:
-	docker compose down -v
+	docker compose down --remove-orphans -v
 
 backup:
 	docker compose run --rm purpur backup
@@ -30,3 +30,6 @@ bash:
 
 bash-run:
 	docker compose run --rm purpur /bin/bash
+
+bash-logwatcher:
+	docker compose run --rm log_watcher /bin/bash
