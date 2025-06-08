@@ -17,6 +17,8 @@ TARGET_FILE = "latest.log"
 MESSAGE_PATTERNS = [
     (": (.*) joined the game", "{0} が参加しました"),
     (": (.*) left the game", "{0} が退出しました"),
+    (": .* For help, type \"help\"", "サーバーが起動しました"),
+    (": All RegionFile I/O tasks to complete", "サーバーが停止しました"),
     # イベントを追加したい場合はここに追加する
 ]
 
