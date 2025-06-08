@@ -3,6 +3,8 @@
 import os
 import re
 import time
+import signal
+import sys
 
 from watchdog.observers.polling import PollingObserver
 from watchdog.events import FileSystemEventHandler
@@ -34,6 +36,8 @@ class MinecraftLogMonitor:
         self.webhook_url = webhook_url
         self.log_position = 0
 
+        self.send_message('サーバーが起動しました')
+
     def send_message(self, message: str) -> None:
         dn = DiscordNotification(message, self.webhook_url)
         dn.notify()
@@ -62,6 +66,12 @@ class ChangeHandler(FileSystemEventHandler):
             self.monitor.get_log(filepath)
 
 
+def signal_handler(signum, frame):
+    monitor.send_message('サーバーが停止しました')
+    observer.stop()
+    observer.join()
+    sys.exit(0)
+
 
 
 if __name__ == "__main__":
@@ -72,5 +82,14 @@ if __name__ == "__main__":
     observer.schedule(event_handler, monitor.target_dir, recursive=False)
     observer.start()
 
-    while True:
-        time.sleep(1)
+    # シグナルハンドラを設定
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        monitor.send_message('サーバーが停止しました')
+        observer.stop()
+        observer.join()
