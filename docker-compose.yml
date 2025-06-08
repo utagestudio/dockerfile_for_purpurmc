@@ -19,5 +19,17 @@ services:
     command: start
     stop_signal: SIGINT
     stop_grace_period: 30s
+    depends_on:
+      - log_watcher
+  log_watcher:
+    container_name: log_watcher
+    build:
+      context: .
+      dockerfile: Dockerfile_logwatcher
+    env_file:
+      - .env
+    volumes:
+      - purpur_volume:/opt/minecraft
+#    restart: always
 volumes:
   purpur_volume:

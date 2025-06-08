@@ -1,0 +1,16 @@
+FROM python:3 as builder
+
+WORKDIR /app
+COPY log_watcher/requirements.txt requirements.txt
+RUN pip --no-cache-dir install --upgrade pip \
+    && pip install --no-cache-dir --target site-packages -r requirements.txt
+
+
+# FROM gcr.io/distroless/python3-debian12
+FROM gcr.io/distroless/python3-debian12
+WORKDIR /app
+COPY --from=builder /app .
+ENV PYTHONPATH=/app/site-packages
+COPY log_watcher/log_watcher.py /log_watcher.py
+
+ENTRYPOINT ["python3", "/log_watcher.py"]
