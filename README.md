@@ -26,6 +26,8 @@
 | JAVA_MEMORY_MIN | The minimum memory size reserved for the Minecraft server. At least 2GB is recommended. It is generally advised to set the same value as `JAVA_MEMORY_MAX`. <br/>マイクラサーバーのために確保するメモリサイズの最小値。最低でも2GBは必要だと思う。一般的に JAVA_MEMORY_MAX と同じにすると良いと言われている。                                            |
 | EULA            | Agreement to the Minecraft server's usage terms. If you cannot agree, the server cannot be used.<br/> To agree, change it to `true`.<br/>マイクラサーバーの利用規約へ同意するかどうか。同意できないなら使用できない。<br/>同意する場合は `true` に書き換える。<br/> https://www.minecraft.net/ja-jp/eula                                         |
 
+3.　If you want to automatically start this Docker Image when the server starts up, please set `restart:always` to the `purpur` instance in `docker-compose.yml`. 
+  - もしサーバー起動したら自動でこの Docker Image を起動したい場合は、 `docker-compose.yml` の `purpur` インスタンスに `restart:always` を設定してください。
 
 ### 1. Build the Docker Image / イメージをビルド
 
