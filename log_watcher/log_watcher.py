@@ -5,6 +5,8 @@ import re
 import time
 import signal
 import sys
+import threading
+
 
 from watchdog.observers.polling import PollingObserver
 from watchdog.events import FileSystemEventHandler
@@ -37,8 +39,7 @@ class MinecraftLogMonitor:
         self.target_file = target_file
         self.webhook_url = webhook_url
         self.log_position = 0
-
-        self.send_message('サーバーが起動しました')
+        self.server_stopped = False
 
     def send_message(self, message: str) -> None:
         dn = DiscordNotification(message, self.webhook_url)
@@ -54,6 +55,23 @@ class MinecraftLogMonitor:
             text = message_creation(log)
             if text:
                 self.send_message(text)
+                self.check_server_stop(text)
+
+    def check_server_stop (self, text:str):
+        # サーバー停止を検知
+        if "サーバーが停止しました" in text:
+            self.server_stopped = True
+            # 少し待ってからlog_watcherを終了
+            threading.Timer(1.0, self.graceful_shutdown).start()
+
+    @staticmethod
+    def graceful_shutdown():
+        """サーバー停止後の適切な終了処理"""
+        print("Minecraftサーバーが停止しました。log_watcherを終了します。")
+        observer.stop()
+        observer.join()
+        sys.exit(0)
+
 
 class ChangeHandler(FileSystemEventHandler):
     def __init__(self, monitor: MinecraftLogMonitor):
@@ -69,7 +87,6 @@ class ChangeHandler(FileSystemEventHandler):
 
 
 def signal_handler(signum, frame):
-    monitor.send_message('サーバーが停止しました')
     observer.stop()
     observer.join()
     sys.exit(0)
@@ -88,10 +105,5 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        monitor.send_message('サーバーが停止しました')
-        observer.stop()
-        observer.join()
+    while True:
+        time.sleep(1)
