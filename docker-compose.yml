@@ -29,7 +29,9 @@ services:
       dockerfile: Dockerfile_logwatcher
     env_file:
       - .env
+    image: log_watcher_image
     volumes:
       - purpur_volume:/opt/minecraft
+    # restart: always
 volumes:
   purpur_volume:
