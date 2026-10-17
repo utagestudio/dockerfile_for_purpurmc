@@ -4,7 +4,7 @@ SETUP_DIR="../setup"
 WORK_DIR="."
 TMUX_SESSION="purpur"
 BACKUP_DIR="/opt/backup"
-WORLDS=("world" "world_nether" "world_the_end")
+WORLDS=("world")
 
 JAR_DIRECTORY="/opt/minecraft"
 JAR_FILE_PREFIX="purpur-"
