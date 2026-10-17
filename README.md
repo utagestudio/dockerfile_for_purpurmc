@@ -26,8 +26,12 @@
 | JAVA_MEMORY_MIN | The minimum memory size reserved for the Minecraft server. At least 2GB is recommended. It is generally advised to set the same value as `JAVA_MEMORY_MAX`. <br/>マイクラサーバーのために確保するメモリサイズの最小値。最低でも2GBは必要だと思う。一般的に JAVA_MEMORY_MAX と同じにすると良いと言われている。                                            |
 | EULA            | Agreement to the Minecraft server's usage terms. If you cannot agree, the server cannot be used.<br/> To agree, change it to `true`.<br/>マイクラサーバーの利用規約へ同意するかどうか。同意できないなら使用できない。<br/>同意する場合は `true` に書き換える。<br/> https://www.minecraft.net/ja-jp/eula                                         |
 
-3.　If you want to automatically start this Docker Image when the server starts up, please set `restart:always` to the `purpur` instance in `docker-compose.yml`. 
-  - もしサーバー起動したら自動でこの Docker Image を起動したい場合は、 `docker-compose.yml` の `purpur` インスタンスに `restart:always` を設定してください。
+3. If you want to start the containers automatically when the server machine starts up, copy `docker-compose.override.yml.sample` to `docker-compose.override.yml`. It sets `restart: always` on both `purpur` and `log_watcher`.
+   - サーバーマシンの起動時にコンテナを自動で起動したい場合は、 `docker-compose.override.yml.sample` を `docker-compose.override.yml` にコピーしてください。 `purpur` と `log_watcher` の両方に `restart: always` が設定されます。
+   - Use `always`, not `unless-stopped`. With `unless-stopped`, containers stopped by `docker compose stop` will not start again when the machine boots.
+     - `unless-stopped` ではなく `always` を使ってください。 `unless-stopped` だと、 `docker compose stop` で止めたコンテナはマシンの起動時に起動しません。
+   - Put other environment-specific settings in `docker-compose.override.yml` as well, instead of editing `docker-compose.yml`. This file is ignored by git, so `git pull` will not conflict.
+     - その他の環境ごとの設定も、 `docker-compose.yml` を直接編集せず `docker-compose.override.yml` に書いてください。このファイルは git の管理対象外なので、 `git pull` で衝突しません。
 
 ### 1. Build the Docker Image / イメージをビルド
 

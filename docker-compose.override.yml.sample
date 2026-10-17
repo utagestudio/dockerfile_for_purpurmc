@@ -1,0 +1,8 @@
+# Copy this file to `docker-compose.override.yml` to apply environment-specific settings.
+# Docker Compose loads `docker-compose.override.yml` automatically.
+# このファイルを `docker-compose.override.yml` にコピーすると、環境ごとの設定を上書きできます。
+services:
+  purpur:
+    restart: always
+  log_watcher:
+    restart: always
