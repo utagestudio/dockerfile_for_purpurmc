@@ -30,6 +30,3 @@ bash:
 
 bash-run:
 	docker compose run --rm purpur /bin/bash
-
-bash-logwatcher:
-	docker compose run --rm log_watcher /bin/bash
