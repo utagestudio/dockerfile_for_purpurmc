@@ -48,7 +48,7 @@ $ make build
   - 次のコマンドで./setupディレクトリに設定ファイルを取得します。
 
 ```bash
-$ docker-compose run --rm purpur init
+$ docker-compose run --rm --no-deps purpur init
 ```
 もしくは
 ```bash
@@ -92,7 +92,7 @@ $ docker-compose exec -it purpur /entrypoint.sh backup
 
 ### If the server is stopped / サーバーが停止している場合
 ```bash
-$ docker-compose run --rm purpur backup
+$ docker-compose run --rm --no-deps purpur backup
 ```
 もしくは
 ```bash
@@ -109,7 +109,7 @@ $ docker-compose exec -it purpur /entrypoint.sh update
 
 ### If the server is stopped / サーバーが停止している場合
 ```bash
-$ docker-compose run --rm purpur update
+$ docker-compose run --rm --no-deps purpur update
 ```
 もしくは
 ```bash
@@ -143,7 +143,7 @@ $ make bash
 ### If the server is stopped / サーバーが停止している場合
 
 ```bash
-$ docker-compose run --rm purpur /bin/bash
+$ docker-compose run --rm --no-deps purpur /bin/bash
 ```
 もしくは
 ```bash

@@ -4,7 +4,7 @@ build:
 	docker compose build
 
 init:
-	docker compose run --rm purpur init
+	docker compose run --rm --no-deps purpur init
 
 start:
 	docker compose up -d
@@ -19,14 +19,14 @@ remove-all:
 	docker compose down --remove-orphans -v
 
 backup:
-	docker compose run --rm purpur backup
+	docker compose run --rm --no-deps purpur backup
 
 update: stop
-	docker compose run --rm purpur update
+	docker compose run --rm --no-deps purpur update
 	$(MAKE) start
 
 bash:
 	docker compose exec -it purpur /bin/bash
 
 bash-run:
-	docker compose run --rm purpur /bin/bash
+	docker compose run --rm --no-deps purpur /bin/bash
