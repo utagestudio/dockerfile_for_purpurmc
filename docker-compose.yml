@@ -21,7 +21,6 @@ services:
     stop_grace_period: 30s
     depends_on:
       - log_watcher
-    # restart: always
   log_watcher:
     container_name: log_watcher
     build:
@@ -32,6 +31,5 @@ services:
     image: log_watcher_image
     volumes:
       - purpur_volume:/opt/minecraft
-    # restart: always
 volumes:
   purpur_volume:

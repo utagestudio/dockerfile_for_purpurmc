@@ -5,3 +5,4 @@
 .idea
 .env
 /_local/
+/docker-compose.override.yml
