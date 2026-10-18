@@ -157,6 +157,10 @@ $ make bash-run
 ## Notes / 注意点
 - After changing the server configuration files, a restart is required.
   - サーバーの設定ファイルを変更した後、再起動が必要です。
+- Configuration files are synced between `./setup` and the server in both directions: from `./setup` on start, and back to `./setup` on stop. In both directions, a file is only overwritten when the copy source is newer, so edits made in `./setup` while the server is running are kept and applied on the next start.
+  - 設定ファイルは `./setup` とサーバーの間で双方向に同期されます（起動時は `./setup` から、停止時は `./setup` へ）。どちらの方向も、コピー元のほうが新しい場合だけ上書きするので、稼働中に `./setup` で編集した内容は消えず、次の起動時に反映されます。
+  - If you want to restore an older file into `./setup`, run `touch` on it so that it is treated as the newest.
+    - 古いファイルを `./setup` に戻したい場合は、 `touch` で更新日時を新しくしてください。
 - It is recommended to keep Docker and Docker Compose updated to the latest versions.
   - DockerとDocker Composeのバージョンを最新に保つことをお勧めします。
 

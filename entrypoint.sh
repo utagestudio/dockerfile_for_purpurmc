@@ -65,6 +65,7 @@ start_command() {
     local exit_code
     exit_code=$(cat $EXIT_CODE_FILE 2>/dev/null || echo unknown)
     log "Server process exited (exit code: $exit_code)"
+    copy_file $WORK_DIR $SETUP_DIR 'Cleanup: '
     exit 1
 }
 
@@ -137,12 +138,15 @@ copy_file() {
     local src=$1
     local dest=$2
     local log_prefix=$3
-    
-    cp $src/*.json $dest/ 2>/dev/null || log "$log_prefix Failed to copy JSON files"
-    cp $src/*.yml $dest/ 2>/dev/null || log "$log_prefix Failed to copy YAML files"
-    cp -r $src/config $dest/ 2>/dev/null || log "$log_prefix Failed to copy config directory"
-    cp $src/server.properties $dest/ 2>/dev/null || log "$log_prefix Failed to copy server.properties"
-    mv $src/ops.txt $dest/ 2>/dev/null || log "$log_prefix Failed to move server.properties"
+
+    # -u: only overwrite when the source is newer, so edits made in setup/
+    # while the server is running are not overwritten on stop.
+    # -p: keep timestamps so the comparison stays meaningful.
+    cp -pu $src/*.json $dest/ 2>/dev/null || log "$log_prefix Failed to copy JSON files"
+    cp -pu $src/*.yml $dest/ 2>/dev/null || log "$log_prefix Failed to copy YAML files"
+    cp -rpu $src/config $dest/ 2>/dev/null || log "$log_prefix Failed to copy config directory"
+    cp -pu $src/server.properties $dest/ 2>/dev/null || log "$log_prefix Failed to copy server.properties"
+    mv $src/ops.txt $dest/ 2>/dev/null || log "$log_prefix Failed to move ops.txt"
 
     log "$log_prefix Copy attempts completed."
     ls -l $dest/ >> /var/log/entrypoint.log
