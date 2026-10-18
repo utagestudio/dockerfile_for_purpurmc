@@ -4,7 +4,7 @@ build:
 	docker compose build
 
 init:
-	docker compose run --rm purpur init
+	docker compose run --rm --no-deps purpur init
 
 start:
 	docker compose up -d
@@ -18,18 +18,22 @@ remove:
 remove-all:
 	docker compose down --remove-orphans -v
 
+# Run inside the server container when it is running, so that the backup can
+# pause auto-save; otherwise start a one-off container.
 backup:
-	docker compose run --rm purpur backup
+	@if [ -n "$$(docker compose ps -q --status running purpur)" ]; then \
+		docker compose exec purpur /entrypoint.sh backup; \
+	else \
+		docker compose run --rm --no-deps purpur backup; \
+	fi
 
+# Start the server again even if the update fails or is cancelled.
 update: stop
-	docker compose run --rm purpur update
+	-docker compose run --rm --no-deps purpur update
 	$(MAKE) start
 
 bash:
 	docker compose exec -it purpur /bin/bash
 
 bash-run:
-	docker compose run --rm purpur /bin/bash
-
-bash-logwatcher:
-	docker compose run --rm log_watcher /bin/bash
+	docker compose run --rm --no-deps purpur /bin/bash

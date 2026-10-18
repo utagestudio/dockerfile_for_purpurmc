@@ -5,10 +5,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        - VERSION=${VERSION}
-    env_file:
-      - .env
+    # Pass only the variables each service needs (values come from .env).
+    environment:
+      - VERSION=${VERSION}
+      - TZ=${TZ}
+      - JAVA_MEMORY_MAX=${JAVA_MEMORY_MAX}
+      - JAVA_MEMORY_MIN=${JAVA_MEMORY_MIN}
+      - EULA=${EULA}
     image: purpur_image
     volumes:
       - purpur_volume:/opt/minecraft
@@ -18,20 +21,19 @@ services:
       - 25565:25565
     command: start
     stop_signal: SIGINT
-    stop_grace_period: 30s
+    stop_grace_period: 150s
     depends_on:
       - log_watcher
-    # restart: always
   log_watcher:
     container_name: log_watcher
     build:
       context: .
       dockerfile: Dockerfile_logwatcher
-    env_file:
-      - .env
+    environment:
+      - TZ=${TZ}
+      - WEBHOOK_URL=${WEBHOOK_URL:-}
     image: log_watcher_image
     volumes:
-      - purpur_volume:/opt/minecraft
-    # restart: always
+      - purpur_volume:/opt/minecraft:ro
 volumes:
   purpur_volume:
