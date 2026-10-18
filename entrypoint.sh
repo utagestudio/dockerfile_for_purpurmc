@@ -102,7 +102,7 @@ backup_command () {
     log "Starting backup process..."
     mkdir -p $BACKUP_DIR
     TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-    BACKUP_FILE="$BACKUP_DIR/worlds_backup_$TIMESTAMP.tar.gz"
+    BACKUP_FILE="$BACKUP_DIR/worlds_backup_$TIMESTAMP.tar.zst"
 
     local server_running=false
     if tmux has-session -t $TMUX_SESSION 2>/dev/null; then
@@ -119,7 +119,8 @@ backup_command () {
 
     log "Creating backup archive..."
     local result=0
-    tar -czf $BACKUP_FILE -C $WORK_DIR ${WORLDS[@]} || result=$?
+    # zstd with all cores (-T0) is much faster than single-threaded gzip.
+    tar -I 'zstd -T0' -cf $BACKUP_FILE -C $WORK_DIR ${WORLDS[@]} || result=$?
 
     if [ "$server_running" = true ]; then
       resume_saving
@@ -133,7 +134,8 @@ backup_command () {
     log "Backup created successfully: $BACKUP_FILE"
 
     log "Cleaning up old backups..."
-    ls -t $BACKUP_DIR/worlds_backup_*.tar.gz | tail -n +6 | xargs -r rm
+    # Also count backups made as .tar.gz before switching to zstd.
+    ls -t $BACKUP_DIR/worlds_backup_*.tar.zst $BACKUP_DIR/worlds_backup_*.tar.gz 2>/dev/null | tail -n +6 | xargs -r rm
 
     log "Backup process completed"
 }

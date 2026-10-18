@@ -105,6 +105,12 @@ $ docker-compose exec purpur /entrypoint.sh backup
 $ docker-compose run --rm --no-deps purpur backup
 ```
 
+- Backups are saved as `./backup/worlds_backup_YYYYmmdd_HHMMSS.tar.zst` (zstd-compressed tar). The 5 newest are kept.
+  - バックアップは `./backup/worlds_backup_YYYYmmdd_HHMMSS.tar.zst` （zstd で圧縮した tar）として保存され、新しいものから5つが残ります。
+- To extract on your machine / 手元のマシンで展開するには:
+  - Linux / macOS: `tar --zstd -xf worlds_backup_xxx.tar.zst` (requires `zstd` / `zstd` が必要)
+  - Windows: [7-Zip ZS](https://github.com/mcmilk/7-Zip-zstd) or `tar` in WSL / [7-Zip ZS](https://github.com/mcmilk/7-Zip-zstd) または WSL の `tar`
+
 ## Update / アップデート
 - First, change the value of `VERSION` specified in the `.env` file.
   - まず、.env に記載の `VERSION` の値を変更してください。

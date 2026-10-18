@@ -1,7 +1,7 @@
 FROM ubuntu:24.04
 RUN apt-get update \
     && apt-get -y upgrade \
-    && DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends openjdk-25-jre curl tmux tzdata \
+    && DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends openjdk-25-jre curl tmux tzdata zstd \
     && apt-get -y autoremove \
     && apt-get -y autoclean \
     && rm -rf /var/lib/apt/lists/*
