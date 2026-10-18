@@ -78,10 +78,15 @@ stop_command() {
       tmux send-keys -t $TMUX_SESSION "stop" C-m
 
       # Wait for Java to finish saving and exit, instead of a fixed sleep.
+      # A `stop` typed while the server is still starting up is ignored, so
+      # send it again every 10 seconds until the server stops.
       local elapsed=0
       while tmux has-session -t $TMUX_SESSION 2>/dev/null && [ $elapsed -lt $STOP_TIMEOUT ]; do
         sleep 1
         elapsed=$((elapsed + 1))
+        if [ $((elapsed % 10)) -eq 0 ] && tmux has-session -t $TMUX_SESSION 2>/dev/null; then
+          tmux send-keys -t $TMUX_SESSION "stop" C-m
+        fi
       done
 
       if tmux has-session -t $TMUX_SESSION 2>/dev/null; then
