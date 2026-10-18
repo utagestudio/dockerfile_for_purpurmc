@@ -35,6 +35,7 @@ update_eula() {
 # init
 init_command() {
     log "Initializing the application..."
+    set_stop_trap
     update_eula
     tmux new-session -d -s $TMUX_SESSION "java -jar ${JAR_DIRECTORY}/${JAR_FILE_PREFIX}${VERSION}${JAR_FILE_SUFFIX} --nogui"
     sleep 20
@@ -43,6 +44,7 @@ init_command() {
 # start
 start_command() {
     log "Starting the application..."
+    set_stop_trap
     update_eula
     copy_file $SETUP_DIR $WORK_DIR 'Setup: '
 
@@ -160,7 +162,12 @@ check_server_status() {
     return 0
 }
 
-trap 'log "Received SIGTERM/SIGINT"; stop_command; log "Exiting"; exit 0' SIGTERM SIGINT
+# Only for commands that own the server process (init/start). Other commands
+# such as `backup` run via `docker compose exec` must not stop the server
+# when they receive Ctrl+C.
+set_stop_trap() {
+    trap 'log "Received SIGTERM/SIGINT"; stop_command; log "Exiting"; exit 0' SIGTERM SIGINT
+}
 
 case "$1" in
   init)
