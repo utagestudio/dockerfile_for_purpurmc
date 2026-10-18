@@ -81,8 +81,12 @@ $ docker-compose stop
 $ make stop
 ```
 
-- Please wait a few seconds for the server to stop completely.
-  - 停止には数秒かかることがあります。
+- Stopping waits until the server has finished saving the world (up to 120 seconds). It usually takes a few seconds, but can take longer on a large world.
+  - 停止時は、サーバーがワールドの保存を終えるまで待ちます（最大120秒）。通常は数秒ですが、ワールドが大きいと時間がかかることがあります。
+- Always stop the server with `make stop` (or `docker compose stop`). If you run `stop` from the in-game or server console, the container exits, and with `restart: always` it starts again automatically.
+  - サーバーは必ず `make stop` （または `docker compose stop` ）で止めてください。ゲーム内やサーバーのコンソールで `stop` を実行するとコンテナが終了し、 `restart: always` を設定している場合は自動で再起動します。
+- The container also exits when the server process crashes, so `restart: always` restarts it automatically.
+  - サーバーのプロセスがクラッシュした場合もコンテナが終了するので、 `restart: always` によって自動で再起動します。
 
 ## Backup / バックアップ
 ### If the server is running / サーバーが稼働中の場合
@@ -153,6 +157,10 @@ $ make bash-run
 ## Notes / 注意点
 - After changing the server configuration files, a restart is required.
   - サーバーの設定ファイルを変更した後、再起動が必要です。
+- Configuration files are synced between `./setup` and the server in both directions: from `./setup` on start, and back to `./setup` on stop. In both directions, a file is only overwritten when the copy source is newer, so edits made in `./setup` while the server is running are kept and applied on the next start.
+  - 設定ファイルは `./setup` とサーバーの間で双方向に同期されます（起動時は `./setup` から、停止時は `./setup` へ）。どちらの方向も、コピー元のほうが新しい場合だけ上書きするので、稼働中に `./setup` で編集した内容は消えず、次の起動時に反映されます。
+  - If you want to restore an older file into `./setup`, run `touch` on it so that it is treated as the newest.
+    - 古いファイルを `./setup` に戻したい場合は、 `touch` で更新日時を新しくしてください。
 - It is recommended to keep Docker and Docker Compose updated to the latest versions.
   - DockerとDocker Composeのバージョンを最新に保つことをお勧めします。
 

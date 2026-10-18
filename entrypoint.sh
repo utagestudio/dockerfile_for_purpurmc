@@ -9,6 +9,9 @@ WORLDS=("world")
 JAR_DIRECTORY="/opt/minecraft"
 JAR_FILE_PREFIX="purpur-"
 JAR_FILE_SUFFIX=".jar"
+EXIT_CODE_FILE="/tmp/purpur_exit_code"
+# Keep this below stop_grace_period in docker-compose.yml.
+STOP_TIMEOUT=120
 
 
 log() {
@@ -33,8 +36,7 @@ update_eula() {
 init_command() {
     log "Initializing the application..."
     update_eula
-    tmux new-session -d -s $TMUX_SESSION
-    tmux send-keys -t $TMUX_SESSION "java -jar ${JAR_DIRECTORY}/${JAR_FILE_PREFIX}${VERSION}${JAR_FILE_SUFFIX} --nogui" C-m
+    tmux new-session -d -s $TMUX_SESSION "java -jar ${JAR_DIRECTORY}/${JAR_FILE_PREFIX}${VERSION}${JAR_FILE_SUFFIX} --nogui"
     sleep 20
     stop_command
 }
@@ -43,27 +45,52 @@ start_command() {
     log "Starting the application..."
     update_eula
     copy_file $SETUP_DIR $WORK_DIR 'Setup: '
-    tmux new-session -d -s $TMUX_SESSION
-    tmux send-keys -t $TMUX_SESSION 'JAVA_MEMORY_MAX=$JAVA_MEMORY_MAX JAVA_MEMORY_MIN=$JAVA_MEMORY_MIN /run.sh' C-m
+
+    local jar="${JAR_DIRECTORY}/${JAR_FILE_PREFIX}${VERSION}${JAR_FILE_SUFFIX}"
+    if [ ! -f "$jar" ]; then
+      log "Server jar not found: $jar (run 'make update' after changing VERSION)"
+      exit 1
+    fi
+
+    # Run the server as the session's own process, so the session (and this
+    # container) ends when Java exits instead of leaving an idle shell behind.
+    rm -f $EXIT_CODE_FILE
+    tmux new-session -d -s $TMUX_SESSION "/run.sh; echo \$? > $EXIT_CODE_FILE"
+    log "Server started in tmux session"
 
     while check_server_status; do
       sleep 1
     done
 
-    log "Application started in tmux session"
+    local exit_code
+    exit_code=$(cat $EXIT_CODE_FILE 2>/dev/null || echo unknown)
+    log "Server process exited (exit code: $exit_code)"
+    copy_file $WORK_DIR $SETUP_DIR 'Cleanup: '
+    exit 1
 }
 
 #stop
 stop_command() {
     log "Stopping the application..."
-    tmux send-keys -t $TMUX_SESSION "stop" C-m
-    sleep 10
-    log "Current directory: $(pwd)"
+    if tmux has-session -t $TMUX_SESSION 2>/dev/null; then
+      tmux send-keys -t $TMUX_SESSION "stop" C-m
+
+      # Wait for Java to finish saving and exit, instead of a fixed sleep.
+      local elapsed=0
+      while tmux has-session -t $TMUX_SESSION 2>/dev/null && [ $elapsed -lt $STOP_TIMEOUT ]; do
+        sleep 1
+        elapsed=$((elapsed + 1))
+      done
+
+      if tmux has-session -t $TMUX_SESSION 2>/dev/null; then
+        log "Server did not stop within ${STOP_TIMEOUT}s. Killing the session."
+        tmux kill-session -t $TMUX_SESSION
+      else
+        log "Server stopped in ${elapsed}s"
+      fi
+    fi
+
     copy_file $WORK_DIR $SETUP_DIR 'Cleanup: '
-    log "Copy attempts completed."
-
-    tmux has-session -t $TMUX_SESSION 2>/dev/null && tmux kill-session -t $TMUX_SESSION
-
     log "Stop command completed"
 }
 
@@ -111,12 +138,15 @@ copy_file() {
     local src=$1
     local dest=$2
     local log_prefix=$3
-    
-    cp $src/*.json $dest/ 2>/dev/null || log "$log_prefix Failed to copy JSON files"
-    cp $src/*.yml $dest/ 2>/dev/null || log "$log_prefix Failed to copy YAML files"
-    cp -r $src/config $dest/ 2>/dev/null || log "$log_prefix Failed to copy config directory"
-    cp $src/server.properties $dest/ 2>/dev/null || log "$log_prefix Failed to copy server.properties"
-    mv $src/ops.txt $dest/ 2>/dev/null || log "$log_prefix Failed to move server.properties"
+
+    # -u: only overwrite when the source is newer, so edits made in setup/
+    # while the server is running are not overwritten on stop.
+    # -p: keep timestamps so the comparison stays meaningful.
+    cp -pu $src/*.json $dest/ 2>/dev/null || log "$log_prefix Failed to copy JSON files"
+    cp -pu $src/*.yml $dest/ 2>/dev/null || log "$log_prefix Failed to copy YAML files"
+    cp -rpu $src/config $dest/ 2>/dev/null || log "$log_prefix Failed to copy config directory"
+    cp -pu $src/server.properties $dest/ 2>/dev/null || log "$log_prefix Failed to copy server.properties"
+    mv $src/ops.txt $dest/ 2>/dev/null || log "$log_prefix Failed to move ops.txt"
 
     log "$log_prefix Copy attempts completed."
     ls -l $dest/ >> /var/log/entrypoint.log
@@ -124,7 +154,7 @@ copy_file() {
 
 check_server_status() {
     if ! tmux has-session -t $TMUX_SESSION 2>/dev/null; then
-        log "Tmux session ended. Exiting..."
+        log "Tmux session ended."
         return 1
     fi
     return 0
