@@ -16,11 +16,16 @@ WEBHOOK_URL = os.environ.get('WEBHOOK_URL', '')
 LOG_FILE = "/opt/minecraft/logs/latest.log"  # 監視対象のファイル
 POLL_INTERVAL = 1  # seconds
 
+# Only match lines written by the server itself ([Server thread/INFO]), so that
+# chat messages cannot trigger notifications. Player names are limited to valid
+# Minecraft names (a leading "." is used by Bedrock players via Floodgate).
+SERVER_LINE = r"\[Server thread/INFO\]: "
+PLAYER_NAME = r"(\.?[A-Za-z0-9_]{1,16})"
 MESSAGE_PATTERNS = [
-    (": (.*) joined the game", "{0} が参加しました"),
-    (": (.*) left the game", "{0} が退出しました"),
-    (": .* For help, type \"help\"", "サーバーが起動しました"),
-    (": All RegionFile I/O tasks to complete", "サーバーが停止しました"),
+    (SERVER_LINE + PLAYER_NAME + r" joined the game$", "{0} が参加しました"),
+    (SERVER_LINE + PLAYER_NAME + r" left the game$", "{0} が退出しました"),
+    (SERVER_LINE + r"Done \(.*\)! For help, type \"help\"$", "サーバーが起動しました"),
+    (SERVER_LINE + r"All RegionFile I/O tasks to complete$", "サーバーが停止しました"),
     # イベントを追加したい場合はここに追加する
 ]
 
