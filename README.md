@@ -110,6 +110,24 @@ $ docker-compose run --rm --no-deps purpur backup
 - To extract on your machine / 手元のマシンで展開するには:
   - Linux / macOS: `tar --zstd -xf worlds_backup_xxx.tar.zst` (requires `zstd` / `zstd` が必要)
   - Windows: [7-Zip ZS](https://github.com/mcmilk/7-Zip-zstd) or `tar` in WSL / [7-Zip ZS](https://github.com/mcmilk/7-Zip-zstd) または WSL の `tar`
+- A backup contains `world` (all dimensions, player data) and `plugins` (plugin data and settings). Server configuration files are kept in `./setup`.
+  - バックアップには `world` （全ディメンションとプレイヤーデータ）と `plugins` （プラグインのデータと設定）が含まれます。サーバーの設定ファイルは `./setup` に保存されています。
+
+## Restore / 復元
+1. Copy the backup file you want to restore to a safe place first. `make backup` keeps only the 5 newest files, so making another backup may delete it.
+   - 復元したいバックアップファイルを、先に別の場所へコピーしておいてください。 `make backup` は新しいものから5つしか残さないので、バックアップを取り直すと消えることがあります。
+2. Stop the server, replace `world` and `plugins` with the ones in the backup, and start the server.
+   - サーバーを止めて、 `world` と `plugins` をバックアップの中身に置き換えてから起動します。
+
+```bash
+$ make stop
+$ docker-compose run --rm --no-deps purpur bash -c \
+    'rm -rf world plugins && tar -xf /opt/backup/worlds_backup_YYYYmmdd_HHMMSS.tar.zst'
+$ make start
+```
+
+- `tar -xf` detects the compression automatically, so it also works with old `.tar.gz` backups. Old `.tar.gz` backups contain only `world`; in that case, remove only `world` (`rm -rf world`).
+  - `tar -xf` は圧縮形式を自動で判別するので、古い `.tar.gz` のバックアップも同じ手順で復元できます。古い `.tar.gz` には `world` しか入っていないので、その場合は `world` だけを削除してください（ `rm -rf world` ）。
 
 ## Update / アップデート
 - First, change the value of `VERSION` specified in the `.env` file.

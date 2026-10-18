@@ -4,7 +4,8 @@ SETUP_DIR="../setup"
 WORK_DIR="."
 TMUX_SESSION="purpur"
 BACKUP_DIR="/opt/backup"
-WORLDS=("world")
+# Directories under the server directory to back up. Missing ones are skipped.
+BACKUP_TARGETS=("world" "plugins")
 
 JAR_DIRECTORY="/opt/minecraft"
 JAR_FILE_PREFIX="purpur-"
@@ -117,10 +118,19 @@ backup_command () {
       fi
     fi
 
-    log "Creating backup archive..."
+    local targets=()
+    for target in "${BACKUP_TARGETS[@]}"; do
+      if [ -e "$WORK_DIR/$target" ]; then
+        targets+=("$target")
+      else
+        log "Skipping missing backup target: $target"
+      fi
+    done
+
+    log "Creating backup archive (${targets[*]})..."
     local result=0
     # zstd with all cores (-T0) is much faster than single-threaded gzip.
-    tar -I 'zstd -T0' -cf $BACKUP_FILE -C $WORK_DIR ${WORLDS[@]} || result=$?
+    tar -I 'zstd -T0' -cf $BACKUP_FILE -C $WORK_DIR "${targets[@]}" || result=$?
 
     if [ "$server_running" = true ]; then
       resume_saving
