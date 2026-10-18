@@ -1,20 +1,20 @@
 # related: https://qiita.com/somakai_sumasi/items/6dc76c5eaabe53c8118e
+#
+# Watch the Minecraft server log and send notifications to Discord.
+# Uses only the Python standard library.
 
+import json
 import os
 import re
-import time
 import signal
 import sys
-import threading
+import time
+import urllib.error
+import urllib.request
 
-
-from watchdog.observers.polling import PollingObserver
-from watchdog.events import FileSystemEventHandler
-from pynotificator import DiscordNotification
-
-WEBHOOK_URL = os.environ['WEBHOOK_URL']
-TARGET_DIR = "/opt/minecraft/logs/" #監視対象のフォルダ
-TARGET_FILE = "latest.log"
+WEBHOOK_URL = os.environ.get('WEBHOOK_URL', '')
+LOG_FILE = "/opt/minecraft/logs/latest.log"  # 監視対象のファイル
+POLL_INTERVAL = 1  # seconds
 
 MESSAGE_PATTERNS = [
     (": (.*) joined the game", "{0} が参加しました"),
@@ -23,6 +23,11 @@ MESSAGE_PATTERNS = [
     (": All RegionFile I/O tasks to complete", "サーバーが停止しました"),
     # イベントを追加したい場合はここに追加する
 ]
+
+
+def log(message: str) -> None:
+    print(message, flush=True)
+
 
 # Discordに送るメッセージを生成する
 def message_creation(text: str):
@@ -33,77 +38,115 @@ def message_creation(text: str):
     return None
 
 
-class MinecraftLogMonitor:
-    def __init__(self, target_dir, target_file, webhook_url):
-        self.target_dir = target_dir
-        self.target_file = target_file
-        self.webhook_url = webhook_url
-        self.log_position = 0
-        self.server_stopped = False
+def send_message(message: str) -> None:
+    if not WEBHOOK_URL:
+        log(f"WEBHOOK_URL is not set. Skipped: {message}")
+        return
 
-    def send_message(self, message: str) -> None:
-        dn = DiscordNotification(message, self.webhook_url)
-        dn.notify()
+    request = urllib.request.Request(
+        WEBHOOK_URL,
+        data=json.dumps({"content": message}).encode(),
+        headers={
+            "Content-Type": "application/json",
+            # Discord rejects the default Python-urllib User-Agent.
+            "User-Agent": "minecraft-log-watcher",
+        },
+    )
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(request, timeout=10):
+                log(f"Sent: {message}")
+                return
+        except urllib.error.HTTPError as e:
+            if e.code == 429:  # rate limited
+                retry_after = float(e.headers.get("Retry-After", "1"))
+                time.sleep(retry_after)
+                continue
+            log(f"Failed to send ({e.code}): {message}")
+            return
+        except (urllib.error.URLError, TimeoutError) as e:
+            log(f"Failed to send ({e}): {message}")
+            time.sleep(2)
+    log(f"Gave up sending: {message}")
 
-    def get_log(self, filepath: str):
-        with open(filepath, "r", errors="ignore") as f:
-            f.seek(self.log_position)
-            logs = f.readlines()
-            self.log_position = f.tell()
 
-        for log in logs:
-            text = message_creation(log)
+class LogFollower:
+    """Follow a log file like `tail -F`, handling rotation and truncation."""
+
+    def __init__(self, path: str):
+        self.path = path
+        self.inode = None
+        self.position = 0
+
+    def start_at_end(self) -> None:
+        # Skip what was logged before this process started, so that past
+        # joins/leaves are not sent again after a restart.
+        try:
+            stat = os.stat(self.path)
+            self.inode = stat.st_ino
+            self.position = stat.st_size
+        except FileNotFoundError:
+            pass
+
+    def read_new_lines(self) -> list:
+        try:
+            stat = os.stat(self.path)
+        except FileNotFoundError:
+            return []
+
+        # The server creates a new latest.log on each start. Read the new file
+        # from the beginning so that the startup message is not missed.
+        if stat.st_ino != self.inode or stat.st_size < self.position:
+            self.inode = stat.st_ino
+            self.position = 0
+
+        if stat.st_size == self.position:
+            return []
+
+        with open(self.path, "rb") as f:
+            f.seek(self.position)
+            data = f.read()
+        # Leave an incomplete last line for the next read.
+        end = data.rfind(b"\n")
+        if end == -1:
+            return []
+        self.position += end + 1
+        return [line.decode(errors="ignore").rstrip("\r")
+                for line in data[:end].split(b"\n")]
+
+
+stopping = False
+
+
+def handle_signal(signum, frame):
+    # Do not exit right away: `docker compose stop` stops this container just
+    # after the server, so read the log once more to send the stop message.
+    global stopping
+    stopping = True
+
+
+def main():
+    # As PID 1 in the container, SIGTERM is ignored unless handled.
+    signal.signal(signal.SIGINT, handle_signal)
+    signal.signal(signal.SIGTERM, handle_signal)
+
+    if not WEBHOOK_URL:
+        log("WEBHOOK_URL is not set. Notifications are only printed.")
+
+    follower = LogFollower(LOG_FILE)
+    follower.start_at_end()
+    log(f"Watching {LOG_FILE}")
+
+    while True:
+        for line in follower.read_new_lines():
+            text = message_creation(line)
             if text:
-                self.send_message(text)
-                self.check_server_stop(text)
-
-    def check_server_stop (self, text:str):
-        # サーバー停止を検知
-        if "サーバーが停止しました" in text:
-            self.server_stopped = True
-            # 少し待ってからlog_watcherを終了
-            threading.Timer(1.0, self.graceful_shutdown).start()
-
-    @staticmethod
-    def graceful_shutdown():
-        """サーバー停止後の適切な終了処理"""
-        print("Minecraftサーバーが停止しました。log_watcherを終了します。")
-        observer.stop()
-        observer.join()
-        sys.exit(0)
-
-
-class ChangeHandler(FileSystemEventHandler):
-    def __init__(self, monitor: MinecraftLogMonitor):
-        self.monitor = monitor
-
-    def on_modified(self, event):
-        filepath = event.src_path
-        if (
-            os.path.isfile(filepath)
-            and os.path.basename(filepath) == self.monitor.target_file
-        ):
-            self.monitor.get_log(filepath)
-
-
-def signal_handler(signum, frame):
-    observer.stop()
-    observer.join()
-    sys.exit(0)
-
+                send_message(text)
+        if stopping:
+            log("log_watcher stopped")
+            sys.exit(0)
+        time.sleep(POLL_INTERVAL)
 
 
 if __name__ == "__main__":
-    monitor = MinecraftLogMonitor(TARGET_DIR, TARGET_FILE, WEBHOOK_URL)
-    event_handler = ChangeHandler(monitor)
-
-    observer = PollingObserver()
-    observer.schedule(event_handler, monitor.target_dir, recursive=False)
-    observer.start()
-
-    # シグナルハンドラを設定
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
-
-    while True:
-        time.sleep(1)
+    main()
