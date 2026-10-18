@@ -8,8 +8,9 @@ BACKUP_DIR="/opt/backup"
 BACKUP_TARGETS=("world" "plugins")
 
 JAR_DIRECTORY="/opt/minecraft"
-JAR_FILE_PREFIX="purpur-"
-JAR_FILE_SUFFIX=".jar"
+# Symlink to the jar in use (purpur-<version>-<build>.jar). run.sh starts it.
+CURRENT_JAR="$JAR_DIRECTORY/purpur.jar"
+PURPUR_API="https://api.purpurmc.org/v2/purpur"
 EXIT_CODE_FILE="/tmp/purpur_exit_code"
 # Keep this below stop_grace_period in docker-compose.yml.
 STOP_TIMEOUT=120
@@ -26,10 +27,10 @@ log() {
 update_eula() {
   if [ "$EULA" = "true" ]; then
     echo "Accepting Minecraft EULA..."
-    sed -i s/eula=.*/eula=true/ eula.txt
+    echo "eula=true" > eula.txt
   else
     echo "Not accepting Minecraft EULA. Server will not start."
-    sed -i s/eula=.*/eula=false/ eula.txt
+    echo "eula=false" > eula.txt
     exit 1
   fi
 }
@@ -39,7 +40,8 @@ init_command() {
     log "Initializing the application..."
     set_stop_trap
     update_eula
-    tmux new-session -d -s $TMUX_SESSION "java -jar ${JAR_DIRECTORY}/${JAR_FILE_PREFIX}${VERSION}${JAR_FILE_SUFFIX} --nogui"
+    ensure_server_jar || exit 1
+    tmux new-session -d -s $TMUX_SESSION "java -jar $CURRENT_JAR --nogui"
     sleep 20
     stop_command
 }
@@ -50,11 +52,7 @@ start_command() {
     update_eula
     copy_file $SETUP_DIR $WORK_DIR 'Setup: '
 
-    local jar="${JAR_DIRECTORY}/${JAR_FILE_PREFIX}${VERSION}${JAR_FILE_SUFFIX}"
-    if [ ! -f "$jar" ]; then
-      log "Server jar not found: $jar (run 'make update' after changing VERSION)"
-      exit 1
-    fi
+    ensure_server_jar || exit 1
 
     # Run the server as the session's own process, so the session (and this
     # container) ends when Java exits instead of leaving an idle shell behind.
@@ -80,10 +78,15 @@ stop_command() {
       tmux send-keys -t $TMUX_SESSION "stop" C-m
 
       # Wait for Java to finish saving and exit, instead of a fixed sleep.
+      # A `stop` typed while the server is still starting up is ignored, so
+      # send it again every 10 seconds until the server stops.
       local elapsed=0
       while tmux has-session -t $TMUX_SESSION 2>/dev/null && [ $elapsed -lt $STOP_TIMEOUT ]; do
         sleep 1
         elapsed=$((elapsed + 1))
+        if [ $((elapsed % 10)) -eq 0 ] && tmux has-session -t $TMUX_SESSION 2>/dev/null; then
+          tmux send-keys -t $TMUX_SESSION "stop" C-m
+        fi
       done
 
       if tmux has-session -t $TMUX_SESSION 2>/dev/null; then
@@ -175,17 +178,227 @@ resume_saving() {
     tmux send-keys -t $TMUX_SESSION 'save-on' C-m
 }
 
-# update
+# update: choose a game version and a build interactively. Pressing Enter at
+# each prompt updates to the latest build of the current game version.
 update_command () {
-  if [ -f "${JAR_DIRECTORY}/${JAR_FILE_PREFIX}${VERSION}${JAR_FILE_SUFFIX}" ]; then
-    log "Version $VERSION is already installed. No update needed."
-  else
-    log "Version $VERSION is not installed. Installing now."
+    if [ ! -t 0 ]; then
+      log "make update is interactive. Run it from a terminal."
+      return 1
+    fi
+    if tmux has-session -t $TMUX_SESSION 2>/dev/null; then
+      log "The server is running. Stop it first (make update stops it for you)."
+      return 1
+    fi
+    ensure_server_jar || return 1
 
-    log "Installing new version: ${VERSION}"
-    curl -L -o "$JAR_DIRECTORY/${JAR_FILE_PREFIX}${VERSION}${JAR_FILE_SUFFIX}" "https://api.purpurmc.org/v2/purpur/${VERSION}/latest/download"
-    log "Version ${VERSION} installed successfully."
-  fi
+    local current cur_version cur_build
+    current=$(current_version_build)
+    cur_version=${current% *}
+    cur_build=${current#* }
+
+    local versions newest
+    versions=$(api_get "" | jq -r '.versions[]')
+    newest=$(echo "$versions" | tail -n 1)
+    if [ -z "$versions" ]; then
+      log "Could not get the version list from the Purpur API"
+      return 1
+    fi
+
+    echo
+    echo "Current: $cur_version build $cur_build"
+    echo "Newest game version: $newest"
+    echo "Available versions (newest 10): $(echo "$versions" | tail -n 10 | tr '\n' ' ')"
+    local version
+    read -r -p "Select version [$cur_version]: " version
+    version=${version:-$cur_version}
+    if ! echo "$versions" | grep -qxF "$version"; then
+      log "Unknown version: $version"
+      return 1
+    fi
+
+    local builds latest
+    builds=$(api_get "/$version" | jq -r '.builds.all[]')
+    latest=$(echo "$builds" | tail -n 1)
+    if [ -z "$builds" ]; then
+      log "Could not get the build list of $version from the Purpur API"
+      return 1
+    fi
+    echo "Available builds of $version (newest 10): $(echo "$builds" | tail -n 10 | tr '\n' ' ')"
+    local build
+    read -r -p "Select build [$latest (latest)]: " build
+    build=${build:-$latest}
+    if ! echo "$builds" | grep -qxF "$build"; then
+      log "Unknown build: $build"
+      return 1
+    fi
+
+    if [ "$version" = "$cur_version" ] && [ "$build" = "$cur_build" ]; then
+      log "Already installed: $version build $build"
+      return 0
+    fi
+
+    echo
+    if version_older_than "$version" "$cur_version"; then
+      echo "WARNING: $version is older than the current version $cur_version."
+      echo "A world opened by a newer version may be broken by an older one."
+      echo "Restore a backup made before the upgrade if you need to go back."
+      local answer
+      read -r -p 'Type "downgrade" to continue: ' answer
+      if [ "$answer" != "downgrade" ]; then
+        log "Update cancelled"
+        return 1
+      fi
+    elif [ "$version" != "$cur_version" ]; then
+      echo "NOTE: Check that your plugins support $version before updating."
+    fi
+
+    local confirm
+    read -r -p "Update $cur_version build $cur_build -> $version build $build? [Y/n]: " confirm
+    case "$confirm" in
+      ""|y|Y|yes|YES) ;;
+      *) log "Update cancelled"; return 1 ;;
+    esac
+
+    log "Updating: $cur_version build $cur_build -> $version build $build"
+    backup_command || { log "Backup failed. Update aborted."; return 1; }
+    install_build "$version" "$build" || return 1
+    log "Updated: $cur_version build $cur_build -> $version build $build"
+}
+
+# Whether version $1 is older than version $2 (e.g. 1.21.11 < 26.1.2).
+version_older_than() {
+    [ "$1" != "$2" ] && [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -n 1)" = "$1" ]
+}
+
+# Retry on any error: connections to the API are occasionally reset.
+CURL_RETRY=(--retry 3 --retry-delay 2 --retry-all-errors)
+
+api_get() {
+    curl -fsSL "${CURL_RETRY[@]}" "$PURPUR_API$1"
+}
+
+# Print "<version> <build>" of the jar in use. The build is "unknown" for a jar
+# installed before builds were tracked (purpur-<version>.jar).
+current_version_build() {
+    local name rest
+    name=$(basename "$(readlink "$CURRENT_JAR")" .jar)
+    rest=${name#purpur-}
+    if [[ "${rest##*-}" =~ ^[0-9]+$ ]] && [ "$rest" != "${rest##*-}" ]; then
+      echo "${rest%-*} ${rest##*-}"
+    else
+      echo "$rest unknown"
+    fi
+}
+
+# Make sure purpur.jar points to a server jar. On the first run after this
+# change, reuse purpur-$VERSION.jar; on a fresh volume, install the latest build
+# of $VERSION.
+ensure_server_jar() {
+    [ -e "$CURRENT_JAR" ] && return 0
+
+    local legacy="$JAR_DIRECTORY/purpur-$VERSION.jar"
+    if [ -f "$legacy" ]; then
+      ln -sfn "$(basename "$legacy")" "$CURRENT_JAR"
+      log "Using existing $(basename "$legacy") as the server jar"
+      return 0
+    fi
+
+    if [ -z "$VERSION" ]; then
+      log "No server jar installed and VERSION is not set in .env"
+      return 1
+    fi
+    local build
+    build=$(api_get "/$VERSION" | jq -r '.builds.latest // empty')
+    if [ -z "$build" ]; then
+      log "Could not get version $VERSION from the Purpur API (not found or network error)"
+      return 1
+    fi
+    log "Installing Purpur $VERSION build $build"
+    install_build "$VERSION" "$build"
+}
+
+# Download (if needed) and verify purpur-<version>-<build>.jar, check that it
+# runs on this image's Java, then point purpur.jar to it.
+install_build() {
+    local version=$1 build=$2
+    local name="purpur-$version-$build.jar"
+    local file="$JAR_DIRECTORY/$name"
+    local downloaded=false
+
+    if [ ! -f "$file" ]; then
+      local md5 tmp actual
+      md5=$(api_get "/$version/$build" | jq -r '.md5 // empty')
+      if [ -z "$md5" ]; then
+        log "Could not get build $build of $version from the Purpur API (not found or network error)"
+        return 1
+      fi
+      tmp=$(mktemp "$JAR_DIRECTORY/.download.XXXXXX")
+      log "Downloading $name..."
+      local status=0
+      curl -fsSL "${CURL_RETRY[@]}" -o "$tmp" "$PURPUR_API/$version/$build/download" || status=$?
+      if [ $status -ne 0 ]; then
+        log "Download failed (curl exit code: $status)"
+        rm -f "$tmp"
+        return 1
+      fi
+      actual=$(md5sum "$tmp" | cut -d' ' -f1)
+      if [ "$actual" != "$md5" ]; then
+        log "Checksum mismatch (expected $md5, got $actual)"
+        rm -f "$tmp"
+        return 1
+      fi
+      chmod 644 "$tmp"
+      mv "$tmp" "$file"
+      downloaded=true
+    fi
+
+    if ! check_java_compat "$file"; then
+      [ "$downloaded" = true ] && rm -f "$file"
+      return 1
+    fi
+
+    local previous
+    previous=$(basename "$(readlink "$CURRENT_JAR" 2>/dev/null)" 2>/dev/null || true)
+    ln -sfn "$name" "$CURRENT_JAR"
+    prune_jars "$name" "$previous"
+}
+
+# The jar only contains a patch for the server, so apply it (patch only, the
+# server is not started) and read the class file version of the patched server.
+check_java_compat() {
+    local file=$1
+    log "Checking Java compatibility..."
+    if ! (cd "$JAR_DIRECTORY" && java -Dpaperclip.patchonly=true -jar "$file" > /dev/null); then
+      log "Failed to prepare $(basename "$file")"
+      return 1
+    fi
+
+    local server_jar major required available
+    server_jar="$JAR_DIRECTORY/versions/$(unzip -p "$file" META-INF/versions.list | awk '{print $3}')"
+    major=$(unzip -p "$server_jar" net/minecraft/server/Main.class 2>/dev/null | od -An -j6 -N2 -tu1 | awk 'NF == 2 {print $1 * 256 + $2}')
+    if [ -z "$major" ]; then
+      log "Could not read the Java version required by $(basename "$file")"
+      return 1
+    fi
+    required=$((major - 44))
+    available=$(java -XshowSettings:properties -version 2>&1 | awk -F'= ' '/java.specification.version/ {print $2}')
+    if [ "$required" -gt "$available" ]; then
+      log "$(basename "$file") requires Java $required, but this image has Java $available. Update the Dockerfile first."
+      return 1
+    fi
+    log "Java $required required, Java $available available: OK"
+}
+
+# Keep the jar in use and the previous one (for rolling back), remove the rest.
+prune_jars() {
+    local keep1=$1 keep2=$2 f
+    for f in "$JAR_DIRECTORY"/purpur-*.jar; do
+      [ -f "$f" ] || continue
+      case "$(basename "$f")" in
+        "$keep1"|"$keep2") ;;
+        *) log "Removing old jar: $(basename "$f")"; rm -f "$f" ;;
+      esac
+    done
 }
 
 copy_file() {

@@ -20,7 +20,7 @@
 
 | Item Name / 項目名 | Description / 内容                                                                                                                                                                                                                                                                             |
 |-----------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| VERSION         | The version of the Minecraft server to install.<br/>インストールするマインクラフトサーバーのバージョン                                                                                                                                                                                                                |
+| VERSION         | The version of the Minecraft server to install first. Used only when no server jar is installed yet (`make init` or the first start); after that, change the version with `make update`.<br/>最初にインストールするマインクラフトサーバーのバージョン。サーバーの jar がまだない場合（ `make init` や初回の起動）だけ使われます。その後のバージョンの変更は `make update` で行います。 |
 | TZ              | Timezone ID. Used for log timestamps and backup file names.<br/>タイムゾーンID。ログの時刻やバックアップのファイル名に使われます。<br/>https://www.hulft.com/help/ja-jp/WebFT-V3/COM-ADM/Content/WEBFT_ADM_COM/TimeZone/timezonelist.htm                                                                                                                                   |
 | JAVA_MEMORY_MAX | The maximum memory size the Minecraft server can use. Make sure it does not exceed the server machine's memory size. Deducting about 4GB for system usage is recommended.<br/>マイクラサーバーが使用していいメモリサイズの最大値。マイクラサーバーが実行されているサーバーマシンのメモリサイズを超えないように注意。サーバーマシン自体もメモリ使えるように、搭載メモリ-4GBくらいがいいんじゃないかな。 |
 | JAVA_MEMORY_MIN | The minimum memory size reserved for the Minecraft server. At least 2GB is recommended. It is generally advised to set the same value as `JAVA_MEMORY_MAX`. <br/>マイクラサーバーのために確保するメモリサイズの最小値。最低でも2GBは必要だと思う。一般的に JAVA_MEMORY_MAX と同じにすると良いと言われている。                                            |
@@ -131,22 +131,33 @@ $ make start
   - `tar -xf` は圧縮形式を自動で判別するので、古い `.tar.gz` のバックアップも同じ手順で復元できます。古い `.tar.gz` には `world` しか入っていないので、その場合は `world` だけを削除してください（ `rm -rf world` ）。
 
 ## Update / アップデート
-- First, change the value of `VERSION` specified in the `.env` file.
-  - まず、.env に記載の `VERSION` の値を変更してください。
-### If the server is running / サーバーが稼働中の場合
-```bash
-$ docker-compose exec -it purpur /entrypoint.sh update
-```
-
-### If the server is stopped / サーバーが停止している場合
-```bash
-$ docker-compose run --rm --no-deps purpur update
-```
-もしくは
 ```bash
 $ make update
 ```
 
+- Stops the server, asks for the game version and build to install, and starts the server again. Press Enter at each prompt to update to the latest build of the current game version.
+  - サーバーを止めて、インストールするゲームバージョンとビルドを選び、もう一度起動します。各項目で Enter を押すと、今のゲームバージョンの最新ビルドに更新します。
+
+```
+Current: 26.3 build 2648
+Newest game version: 26.3
+Available versions (newest 10): ... 26.1.2 26.2 26.3
+Select version [26.3]:
+Available builds of 26.3 (newest 10): ... 2650 2651 2652
+Select build [2652 (latest)]:
+Update 26.3 build 2648 -> 26.3 build 2652? [Y/n]:
+```
+
+- Run it from a terminal. It is interactive and fails without one.
+  - 対話式なので、端末から実行してください。端末がない環境（cron など）では失敗します。
+- A backup is created before updating. The downloaded jar is verified with the checksum from the Purpur API, and the update is cancelled if this image's Java cannot run it.
+  - 更新の前にバックアップを作成します。ダウンロードした jar は Purpur の API のチェックサムで検証し、このイメージの Java で動かない場合は更新を中止します。
+- Choosing an older game version asks you to type `downgrade`. A world opened by a newer version may be broken by an older one, so restore a backup instead if possible. Older builds of the same game version can be chosen freely.
+  - 今より古いゲームバージョンを選ぶと、 `downgrade` の入力を求めます。新しいバージョンで開いたワールドは、古いバージョンで開くと壊れることがあるので、できればバックアップから復元してください。同じゲームバージョンの古いビルドは、確認なしで選べます。
+- When updating to a new game version, check that your plugins support it.
+  - 新しいゲームバージョンに上げるときは、プラグインが対応しているか確認してください。
+- The jar in use and the previous one are kept in the volume as `purpur-<version>-<build>.jar`. `purpur.jar` points to the one in use.
+  - 使用中の jar と1つ前の jar は、ボリュームに `purpur-<バージョン>-<ビルド>.jar` として残ります。 `purpur.jar` は使用中の jar を指します。
 
 ## Remove Containers and Network / コンテナとネットワークの削除
 

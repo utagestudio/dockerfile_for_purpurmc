@@ -27,8 +27,9 @@ backup:
 		docker compose run --rm --no-deps purpur backup; \
 	fi
 
+# Start the server again even if the update fails or is cancelled.
 update: stop
-	docker compose run --rm --no-deps purpur update
+	-docker compose run --rm --no-deps purpur update
 	$(MAKE) start
 
 bash:

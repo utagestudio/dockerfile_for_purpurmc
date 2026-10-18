@@ -5,8 +5,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        - VERSION=${VERSION}
     # Pass only the variables each service needs (values come from .env).
     environment:
       - VERSION=${VERSION}
