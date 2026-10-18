@@ -12,6 +12,7 @@ JAR_FILE_SUFFIX=".jar"
 EXIT_CODE_FILE="/tmp/purpur_exit_code"
 # Keep this below stop_grace_period in docker-compose.yml.
 STOP_TIMEOUT=120
+SAVE_TIMEOUT=60
 
 
 log() {
@@ -103,24 +104,63 @@ backup_command () {
     TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
     BACKUP_FILE="$BACKUP_DIR/worlds_backup_$TIMESTAMP.tar.gz"
 
+    local server_running=false
     if tmux has-session -t $TMUX_SESSION 2>/dev/null; then
-      log "Sending save-all command to the server..."
-      tmux send-keys -t $TMUX_SESSION 'save-all' C-m
-      sleep 10
+      server_running=true
+      # Make sure auto-save is turned back on even if the backup is interrupted.
+      trap 'resume_saving; exit 1' SIGTERM SIGINT
+      log "Disabling auto-save and flushing the world to disk..."
+      tmux send-keys -t $TMUX_SESSION 'save-off' C-m
+      if ! flush_and_wait; then
+        resume_saving
+        return 1
+      fi
     fi
 
     log "Creating backup archive..."
-    if tar -czf $BACKUP_FILE -C $WORK_DIR ${WORLDS[@]}; then
-      log "Backup created successfully: $BACKUP_FILE"
-    else
+    local result=0
+    tar -czf $BACKUP_FILE -C $WORK_DIR ${WORLDS[@]} || result=$?
+
+    if [ "$server_running" = true ]; then
+      resume_saving
+      trap - SIGTERM SIGINT
+    fi
+
+    if [ $result -ne 0 ]; then
       log "Failed to create backup"
       return 1
     fi
+    log "Backup created successfully: $BACKUP_FILE"
 
     log "Cleaning up old backups..."
     ls -t $BACKUP_DIR/worlds_backup_*.tar.gz | tail -n +6 | xargs -r rm
 
     log "Backup process completed"
+}
+
+# Run `save-all flush` and wait until the server reports that it has finished.
+flush_and_wait() {
+    local log_file="$WORK_DIR/logs/latest.log"
+    local offset
+    offset=$(wc -l < "$log_file")
+    tmux send-keys -t $TMUX_SESSION 'save-all flush' C-m
+
+    local elapsed=0
+    while [ $elapsed -lt $SAVE_TIMEOUT ]; do
+      if tail -n +$((offset + 1)) "$log_file" | grep -q 'Saved the game'; then
+        log "World saved in ${elapsed}s"
+        return 0
+      fi
+      sleep 1
+      elapsed=$((elapsed + 1))
+    done
+    log "Server did not finish saving within ${SAVE_TIMEOUT}s. Aborting backup."
+    return 1
+}
+
+resume_saving() {
+    log "Re-enabling auto-save..."
+    tmux send-keys -t $TMUX_SESSION 'save-on' C-m
 }
 
 # update

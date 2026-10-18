@@ -89,18 +89,20 @@ $ make stop
   - サーバーのプロセスがクラッシュした場合もコンテナが終了するので、 `restart: always` によって自動で再起動します。
 
 ## Backup / バックアップ
-### If the server is running / サーバーが稼働中の場合
-```bash
-$ docker-compose exec -it purpur /entrypoint.sh backup
-```
-
-### If the server is stopped / サーバーが停止している場合
-```bash
-$ docker-compose run --rm --no-deps purpur backup
-```
-もしくは
 ```bash
 $ make backup
+```
+
+- Works whether the server is running or stopped. While the server is running, auto-save is turned off (`save-off`), the world is flushed to disk (`save-all flush`), and auto-save is turned back on (`save-on`) after the archive is created, so the backup is consistent.
+  - サーバーが稼働中でも停止中でも実行できます。稼働中の場合は、自動保存を止め（`save-off`）、ワールドをディスクに書き出し（`save-all flush`）、アーカイブを作ったあとで自動保存を再開（`save-on`）するので、整合性のとれたバックアップになります。
+- Without `make`:
+  - `make` を使わない場合:
+
+```bash
+# If the server is running / サーバーが稼働中の場合
+$ docker-compose exec purpur /entrypoint.sh backup
+# If the server is stopped / サーバーが停止している場合
+$ docker-compose run --rm --no-deps purpur backup
 ```
 
 ## Update / アップデート
