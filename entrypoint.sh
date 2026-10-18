@@ -10,6 +10,8 @@ JAR_DIRECTORY="/opt/minecraft"
 JAR_FILE_PREFIX="purpur-"
 JAR_FILE_SUFFIX=".jar"
 EXIT_CODE_FILE="/tmp/purpur_exit_code"
+# Keep this below stop_grace_period in docker-compose.yml.
+STOP_TIMEOUT=120
 
 
 log() {
@@ -69,14 +71,25 @@ start_command() {
 #stop
 stop_command() {
     log "Stopping the application..."
-    tmux send-keys -t $TMUX_SESSION "stop" C-m
-    sleep 10
-    log "Current directory: $(pwd)"
+    if tmux has-session -t $TMUX_SESSION 2>/dev/null; then
+      tmux send-keys -t $TMUX_SESSION "stop" C-m
+
+      # Wait for Java to finish saving and exit, instead of a fixed sleep.
+      local elapsed=0
+      while tmux has-session -t $TMUX_SESSION 2>/dev/null && [ $elapsed -lt $STOP_TIMEOUT ]; do
+        sleep 1
+        elapsed=$((elapsed + 1))
+      done
+
+      if tmux has-session -t $TMUX_SESSION 2>/dev/null; then
+        log "Server did not stop within ${STOP_TIMEOUT}s. Killing the session."
+        tmux kill-session -t $TMUX_SESSION
+      else
+        log "Server stopped in ${elapsed}s"
+      fi
+    fi
+
     copy_file $WORK_DIR $SETUP_DIR 'Cleanup: '
-    log "Copy attempts completed."
-
-    tmux has-session -t $TMUX_SESSION 2>/dev/null && tmux kill-session -t $TMUX_SESSION
-
     log "Stop command completed"
 }
 

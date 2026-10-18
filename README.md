@@ -81,8 +81,8 @@ $ docker-compose stop
 $ make stop
 ```
 
-- Please wait a few seconds for the server to stop completely.
-  - 停止には数秒かかることがあります。
+- Stopping waits until the server has finished saving the world (up to 120 seconds). It usually takes a few seconds, but can take longer on a large world.
+  - 停止時は、サーバーがワールドの保存を終えるまで待ちます（最大120秒）。通常は数秒ですが、ワールドが大きいと時間がかかることがあります。
 - Always stop the server with `make stop` (or `docker compose stop`). If you run `stop` from the in-game or server console, the container exits, and with `restart: always` it starts again automatically.
   - サーバーは必ず `make stop` （または `docker compose stop` ）で止めてください。ゲーム内やサーバーのコンソールで `stop` を実行するとコンテナが終了し、 `restart: always` を設定している場合は自動で再起動します。
 - The container also exits when the server process crashes, so `restart: always` restarts it automatically.
