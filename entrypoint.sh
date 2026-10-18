@@ -4,7 +4,8 @@ SETUP_DIR="../setup"
 WORK_DIR="."
 TMUX_SESSION="purpur"
 BACKUP_DIR="/opt/backup"
-WORLDS=("world")
+# Directories under the server directory to back up. Missing ones are skipped.
+BACKUP_TARGETS=("world" "plugins")
 
 JAR_DIRECTORY="/opt/minecraft"
 JAR_FILE_PREFIX="purpur-"
@@ -12,6 +13,7 @@ JAR_FILE_SUFFIX=".jar"
 EXIT_CODE_FILE="/tmp/purpur_exit_code"
 # Keep this below stop_grace_period in docker-compose.yml.
 STOP_TIMEOUT=120
+SAVE_TIMEOUT=60
 
 
 log() {
@@ -35,6 +37,7 @@ update_eula() {
 # init
 init_command() {
     log "Initializing the application..."
+    set_stop_trap
     update_eula
     tmux new-session -d -s $TMUX_SESSION "java -jar ${JAR_DIRECTORY}/${JAR_FILE_PREFIX}${VERSION}${JAR_FILE_SUFFIX} --nogui"
     sleep 20
@@ -43,6 +46,7 @@ init_command() {
 # start
 start_command() {
     log "Starting the application..."
+    set_stop_trap
     update_eula
     copy_file $SETUP_DIR $WORK_DIR 'Setup: '
 
@@ -99,26 +103,76 @@ backup_command () {
     log "Starting backup process..."
     mkdir -p $BACKUP_DIR
     TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-    BACKUP_FILE="$BACKUP_DIR/worlds_backup_$TIMESTAMP.tar.gz"
+    BACKUP_FILE="$BACKUP_DIR/worlds_backup_$TIMESTAMP.tar.zst"
 
+    local server_running=false
     if tmux has-session -t $TMUX_SESSION 2>/dev/null; then
-      log "Sending save-all command to the server..."
-      tmux send-keys -t $TMUX_SESSION 'save-all' C-m
-      sleep 10
+      server_running=true
+      # Make sure auto-save is turned back on even if the backup is interrupted.
+      trap 'resume_saving; exit 1' SIGTERM SIGINT
+      log "Disabling auto-save and flushing the world to disk..."
+      tmux send-keys -t $TMUX_SESSION 'save-off' C-m
+      if ! flush_and_wait; then
+        resume_saving
+        return 1
+      fi
     fi
 
-    log "Creating backup archive..."
-    if tar -czf $BACKUP_FILE -C $WORK_DIR ${WORLDS[@]}; then
-      log "Backup created successfully: $BACKUP_FILE"
-    else
+    local targets=()
+    for target in "${BACKUP_TARGETS[@]}"; do
+      if [ -e "$WORK_DIR/$target" ]; then
+        targets+=("$target")
+      else
+        log "Skipping missing backup target: $target"
+      fi
+    done
+
+    log "Creating backup archive (${targets[*]})..."
+    local result=0
+    # zstd with all cores (-T0) is much faster than single-threaded gzip.
+    tar -I 'zstd -T0' -cf $BACKUP_FILE -C $WORK_DIR "${targets[@]}" || result=$?
+
+    if [ "$server_running" = true ]; then
+      resume_saving
+      trap - SIGTERM SIGINT
+    fi
+
+    if [ $result -ne 0 ]; then
       log "Failed to create backup"
       return 1
     fi
+    log "Backup created successfully: $BACKUP_FILE"
 
     log "Cleaning up old backups..."
-    ls -t $BACKUP_DIR/worlds_backup_*.tar.gz | tail -n +6 | xargs -r rm
+    # Also count backups made as .tar.gz before switching to zstd.
+    ls -t $BACKUP_DIR/worlds_backup_*.tar.zst $BACKUP_DIR/worlds_backup_*.tar.gz 2>/dev/null | tail -n +6 | xargs -r rm
 
     log "Backup process completed"
+}
+
+# Run `save-all flush` and wait until the server reports that it has finished.
+flush_and_wait() {
+    local log_file="$WORK_DIR/logs/latest.log"
+    local offset
+    offset=$(wc -l < "$log_file")
+    tmux send-keys -t $TMUX_SESSION 'save-all flush' C-m
+
+    local elapsed=0
+    while [ $elapsed -lt $SAVE_TIMEOUT ]; do
+      if tail -n +$((offset + 1)) "$log_file" | grep -q 'Saved the game'; then
+        log "World saved in ${elapsed}s"
+        return 0
+      fi
+      sleep 1
+      elapsed=$((elapsed + 1))
+    done
+    log "Server did not finish saving within ${SAVE_TIMEOUT}s. Aborting backup."
+    return 1
+}
+
+resume_saving() {
+    log "Re-enabling auto-save..."
+    tmux send-keys -t $TMUX_SESSION 'save-on' C-m
 }
 
 # update
@@ -160,7 +214,12 @@ check_server_status() {
     return 0
 }
 
-trap 'log "Received SIGTERM/SIGINT"; stop_command; log "Exiting"; exit 0' SIGTERM SIGINT
+# Only for commands that own the server process (init/start). Other commands
+# such as `backup` run via `docker compose exec` must not stop the server
+# when they receive Ctrl+C.
+set_stop_trap() {
+    trap 'log "Received SIGTERM/SIGINT"; stop_command; log "Exiting"; exit 0' SIGTERM SIGINT
+}
 
 case "$1" in
   init)

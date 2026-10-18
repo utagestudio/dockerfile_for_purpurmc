@@ -18,8 +18,14 @@ remove:
 remove-all:
 	docker compose down --remove-orphans -v
 
+# Run inside the server container when it is running, so that the backup can
+# pause auto-save; otherwise start a one-off container.
 backup:
-	docker compose run --rm --no-deps purpur backup
+	@if [ -n "$$(docker compose ps -q --status running purpur)" ]; then \
+		docker compose exec purpur /entrypoint.sh backup; \
+	else \
+		docker compose run --rm --no-deps purpur backup; \
+	fi
 
 update: stop
 	docker compose run --rm --no-deps purpur update

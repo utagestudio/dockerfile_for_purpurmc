@@ -21,7 +21,7 @@
 | Item Name / 項目名 | Description / 内容                                                                                                                                                                                                                                                                             |
 |-----------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | VERSION         | The version of the Minecraft server to install.<br/>インストールするマインクラフトサーバーのバージョン                                                                                                                                                                                                                |
-| TZ              | Timezone ID. Probably unused.<br/>タイムゾーンID。未使用な気がする。<br/>https://www.hulft.com/help/ja-jp/WebFT-V3/COM-ADM/Content/WEBFT_ADM_COM/TimeZone/timezonelist.htm                                                                                                                                   |
+| TZ              | Timezone ID. Used for log timestamps and backup file names.<br/>タイムゾーンID。ログの時刻やバックアップのファイル名に使われます。<br/>https://www.hulft.com/help/ja-jp/WebFT-V3/COM-ADM/Content/WEBFT_ADM_COM/TimeZone/timezonelist.htm                                                                                                                                   |
 | JAVA_MEMORY_MAX | The maximum memory size the Minecraft server can use. Make sure it does not exceed the server machine's memory size. Deducting about 4GB for system usage is recommended.<br/>マイクラサーバーが使用していいメモリサイズの最大値。マイクラサーバーが実行されているサーバーマシンのメモリサイズを超えないように注意。サーバーマシン自体もメモリ使えるように、搭載メモリ-4GBくらいがいいんじゃないかな。 |
 | JAVA_MEMORY_MIN | The minimum memory size reserved for the Minecraft server. At least 2GB is recommended. It is generally advised to set the same value as `JAVA_MEMORY_MAX`. <br/>マイクラサーバーのために確保するメモリサイズの最小値。最低でも2GBは必要だと思う。一般的に JAVA_MEMORY_MAX と同じにすると良いと言われている。                                            |
 | EULA            | Agreement to the Minecraft server's usage terms. If you cannot agree, the server cannot be used.<br/> To agree, change it to `true`.<br/>マイクラサーバーの利用規約へ同意するかどうか。同意できないなら使用できない。<br/>同意する場合は `true` に書き換える。<br/> https://www.minecraft.net/ja-jp/eula                                         |
@@ -89,19 +89,45 @@ $ make stop
   - サーバーのプロセスがクラッシュした場合もコンテナが終了するので、 `restart: always` によって自動で再起動します。
 
 ## Backup / バックアップ
-### If the server is running / サーバーが稼働中の場合
-```bash
-$ docker-compose exec -it purpur /entrypoint.sh backup
-```
-
-### If the server is stopped / サーバーが停止している場合
-```bash
-$ docker-compose run --rm --no-deps purpur backup
-```
-もしくは
 ```bash
 $ make backup
 ```
+
+- Works whether the server is running or stopped. While the server is running, auto-save is turned off (`save-off`), the world is flushed to disk (`save-all flush`), and auto-save is turned back on (`save-on`) after the archive is created, so the backup is consistent.
+  - サーバーが稼働中でも停止中でも実行できます。稼働中の場合は、自動保存を止め（`save-off`）、ワールドをディスクに書き出し（`save-all flush`）、アーカイブを作ったあとで自動保存を再開（`save-on`）するので、整合性のとれたバックアップになります。
+- Without `make`:
+  - `make` を使わない場合:
+
+```bash
+# If the server is running / サーバーが稼働中の場合
+$ docker-compose exec purpur /entrypoint.sh backup
+# If the server is stopped / サーバーが停止している場合
+$ docker-compose run --rm --no-deps purpur backup
+```
+
+- Backups are saved as `./backup/worlds_backup_YYYYmmdd_HHMMSS.tar.zst` (zstd-compressed tar). The 5 newest are kept.
+  - バックアップは `./backup/worlds_backup_YYYYmmdd_HHMMSS.tar.zst` （zstd で圧縮した tar）として保存され、新しいものから5つが残ります。
+- To extract on your machine / 手元のマシンで展開するには:
+  - Linux / macOS: `tar --zstd -xf worlds_backup_xxx.tar.zst` (requires `zstd` / `zstd` が必要)
+  - Windows: [7-Zip ZS](https://github.com/mcmilk/7-Zip-zstd) or `tar` in WSL / [7-Zip ZS](https://github.com/mcmilk/7-Zip-zstd) または WSL の `tar`
+- A backup contains `world` (all dimensions, player data) and `plugins` (plugin data and settings). Server configuration files are kept in `./setup`.
+  - バックアップには `world` （全ディメンションとプレイヤーデータ）と `plugins` （プラグインのデータと設定）が含まれます。サーバーの設定ファイルは `./setup` に保存されています。
+
+## Restore / 復元
+1. Copy the backup file you want to restore to a safe place first. `make backup` keeps only the 5 newest files, so making another backup may delete it.
+   - 復元したいバックアップファイルを、先に別の場所へコピーしておいてください。 `make backup` は新しいものから5つしか残さないので、バックアップを取り直すと消えることがあります。
+2. Stop the server, replace `world` and `plugins` with the ones in the backup, and start the server.
+   - サーバーを止めて、 `world` と `plugins` をバックアップの中身に置き換えてから起動します。
+
+```bash
+$ make stop
+$ docker-compose run --rm --no-deps purpur bash -c \
+    'rm -rf world plugins && tar -xf /opt/backup/worlds_backup_YYYYmmdd_HHMMSS.tar.zst'
+$ make start
+```
+
+- `tar -xf` detects the compression automatically, so it also works with old `.tar.gz` backups. Old `.tar.gz` backups contain only `world`; in that case, remove only `world` (`rm -rf world`).
+  - `tar -xf` は圧縮形式を自動で判別するので、古い `.tar.gz` のバックアップも同じ手順で復元できます。古い `.tar.gz` には `world` しか入っていないので、その場合は `world` だけを削除してください（ `rm -rf world` ）。
 
 ## Update / アップデート
 - First, change the value of `VERSION` specified in the `.env` file.
