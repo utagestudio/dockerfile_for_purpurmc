@@ -9,6 +9,7 @@ WORLDS=("world")
 JAR_DIRECTORY="/opt/minecraft"
 JAR_FILE_PREFIX="purpur-"
 JAR_FILE_SUFFIX=".jar"
+EXIT_CODE_FILE="/tmp/purpur_exit_code"
 
 
 log() {
@@ -33,8 +34,7 @@ update_eula() {
 init_command() {
     log "Initializing the application..."
     update_eula
-    tmux new-session -d -s $TMUX_SESSION
-    tmux send-keys -t $TMUX_SESSION "java -jar ${JAR_DIRECTORY}/${JAR_FILE_PREFIX}${VERSION}${JAR_FILE_SUFFIX} --nogui" C-m
+    tmux new-session -d -s $TMUX_SESSION "java -jar ${JAR_DIRECTORY}/${JAR_FILE_PREFIX}${VERSION}${JAR_FILE_SUFFIX} --nogui"
     sleep 20
     stop_command
 }
@@ -43,14 +43,27 @@ start_command() {
     log "Starting the application..."
     update_eula
     copy_file $SETUP_DIR $WORK_DIR 'Setup: '
-    tmux new-session -d -s $TMUX_SESSION
-    tmux send-keys -t $TMUX_SESSION 'JAVA_MEMORY_MAX=$JAVA_MEMORY_MAX JAVA_MEMORY_MIN=$JAVA_MEMORY_MIN /run.sh' C-m
+
+    local jar="${JAR_DIRECTORY}/${JAR_FILE_PREFIX}${VERSION}${JAR_FILE_SUFFIX}"
+    if [ ! -f "$jar" ]; then
+      log "Server jar not found: $jar (run 'make update' after changing VERSION)"
+      exit 1
+    fi
+
+    # Run the server as the session's own process, so the session (and this
+    # container) ends when Java exits instead of leaving an idle shell behind.
+    rm -f $EXIT_CODE_FILE
+    tmux new-session -d -s $TMUX_SESSION "/run.sh; echo \$? > $EXIT_CODE_FILE"
+    log "Server started in tmux session"
 
     while check_server_status; do
       sleep 1
     done
 
-    log "Application started in tmux session"
+    local exit_code
+    exit_code=$(cat $EXIT_CODE_FILE 2>/dev/null || echo unknown)
+    log "Server process exited (exit code: $exit_code)"
+    exit 1
 }
 
 #stop
@@ -124,7 +137,7 @@ copy_file() {
 
 check_server_status() {
     if ! tmux has-session -t $TMUX_SESSION 2>/dev/null; then
-        log "Tmux session ended. Exiting..."
+        log "Tmux session ended."
         return 1
     fi
     return 0

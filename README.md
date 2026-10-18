@@ -83,6 +83,10 @@ $ make stop
 
 - Please wait a few seconds for the server to stop completely.
   - 停止には数秒かかることがあります。
+- Always stop the server with `make stop` (or `docker compose stop`). If you run `stop` from the in-game or server console, the container exits, and with `restart: always` it starts again automatically.
+  - サーバーは必ず `make stop` （または `docker compose stop` ）で止めてください。ゲーム内やサーバーのコンソールで `stop` を実行するとコンテナが終了し、 `restart: always` を設定している場合は自動で再起動します。
+- The container also exits when the server process crashes, so `restart: always` restarts it automatically.
+  - サーバーのプロセスがクラッシュした場合もコンテナが終了するので、 `restart: always` によって自動で再起動します。
 
 ## Backup / バックアップ
 ### If the server is running / サーバーが稼働中の場合
