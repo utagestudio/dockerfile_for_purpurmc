@@ -20,7 +20,7 @@
 
 | Item Name / 項目名 | Description / 内容                                                                                                                                                                                                                                                                             |
 |-----------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| VERSION         | The version of the Minecraft server to install.<br/>インストールするマインクラフトサーバーのバージョン                                                                                                                                                                                                                |
+| VERSION         | The version of the Minecraft server to install first. Used only when no server jar is installed yet (`make init` or the first start); after that, change the version with `make update`.<br/>最初にインストールするマインクラフトサーバーのバージョン。サーバーの jar がまだない場合（ `make init` や初回の起動）だけ使われます。その後のバージョンの変更は `make update` で行います。 |
 | TZ              | Timezone ID. Used for log timestamps and backup file names.<br/>タイムゾーンID。ログの時刻やバックアップのファイル名に使われます。<br/>https://www.hulft.com/help/ja-jp/WebFT-V3/COM-ADM/Content/WEBFT_ADM_COM/TimeZone/timezonelist.htm                                                                                                                                   |
 | JAVA_MEMORY_MAX | The maximum memory size the Minecraft server can use. Make sure it does not exceed the server machine's memory size. Deducting about 4GB for system usage is recommended.<br/>マイクラサーバーが使用していいメモリサイズの最大値。マイクラサーバーが実行されているサーバーマシンのメモリサイズを超えないように注意。サーバーマシン自体もメモリ使えるように、搭載メモリ-4GBくらいがいいんじゃないかな。 |
 | JAVA_MEMORY_MIN | The minimum memory size reserved for the Minecraft server. At least 2GB is recommended. It is generally advised to set the same value as `JAVA_MEMORY_MAX`. <br/>マイクラサーバーのために確保するメモリサイズの最小値。最低でも2GBは必要だと思う。一般的に JAVA_MEMORY_MAX と同じにすると良いと言われている。                                            |
@@ -131,22 +131,16 @@ $ make start
   - `tar -xf` は圧縮形式を自動で判別するので、古い `.tar.gz` のバックアップも同じ手順で復元できます。古い `.tar.gz` には `world` しか入っていないので、その場合は `world` だけを削除してください（ `rm -rf world` ）。
 
 ## Update / アップデート
-- First, change the value of `VERSION` specified in the `.env` file.
-  - まず、.env に記載の `VERSION` の値を変更してください。
-### If the server is running / サーバーが稼働中の場合
-```bash
-$ docker-compose exec -it purpur /entrypoint.sh update
-```
-
-### If the server is stopped / サーバーが停止している場合
-```bash
-$ docker-compose run --rm --no-deps purpur update
-```
-もしくは
 ```bash
 $ make update
 ```
 
+- Stops the server, updates it to the latest build of the current game version, and starts it again. A backup is created before updating.
+  - サーバーを止めて、今のゲームバージョンの最新ビルドに更新し、もう一度起動します。更新の前にバックアップを作成します。
+- The downloaded jar is verified with the checksum from the Purpur API, and the update is cancelled if this image's Java cannot run it.
+  - ダウンロードした jar は Purpur の API のチェックサムで検証し、このイメージの Java で動かない場合は更新を中止します。
+- The jar in use and the previous one are kept in the volume as `purpur-<version>-<build>.jar`. `purpur.jar` points to the one in use.
+  - 使用中の jar と1つ前の jar は、ボリュームに `purpur-<バージョン>-<ビルド>.jar` として残ります。 `purpur.jar` は使用中の jar を指します。
 
 ## Remove Containers and Network / コンテナとネットワークの削除
 
