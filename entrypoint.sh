@@ -173,33 +173,96 @@ resume_saving() {
     tmux send-keys -t $TMUX_SESSION 'save-on' C-m
 }
 
-# update
+# update: choose a game version and a build interactively. Pressing Enter at
+# each prompt updates to the latest build of the current game version.
 update_command () {
+    if [ ! -t 0 ]; then
+      log "make update is interactive. Run it from a terminal."
+      return 1
+    fi
     if tmux has-session -t $TMUX_SESSION 2>/dev/null; then
       log "The server is running. Stop it first (make update stops it for you)."
       return 1
     fi
     ensure_server_jar || return 1
 
-    local current version build latest
+    local current cur_version cur_build
     current=$(current_version_build)
-    version=${current% *}
-    build=${current#* }
-    latest=$(api_get "/$version" | jq -r '.builds.latest // empty')
-    if [ -z "$latest" ]; then
-      log "Could not get the latest build of $version from the Purpur API"
+    cur_version=${current% *}
+    cur_build=${current#* }
+
+    local versions newest
+    versions=$(api_get "" | jq -r '.versions[]')
+    newest=$(echo "$versions" | tail -n 1)
+    if [ -z "$versions" ]; then
+      log "Could not get the version list from the Purpur API"
       return 1
     fi
 
-    if [ "$build" = "$latest" ]; then
-      log "Already up to date: $version build $build"
+    echo
+    echo "Current: $cur_version build $cur_build"
+    echo "Newest game version: $newest"
+    echo "Available versions (newest 10): $(echo "$versions" | tail -n 10 | tr '\n' ' ')"
+    local version
+    read -r -p "Select version [$cur_version]: " version
+    version=${version:-$cur_version}
+    if ! echo "$versions" | grep -qxF "$version"; then
+      log "Unknown version: $version"
+      return 1
+    fi
+
+    local builds latest
+    builds=$(api_get "/$version" | jq -r '.builds.all[]')
+    latest=$(echo "$builds" | tail -n 1)
+    if [ -z "$builds" ]; then
+      log "Could not get the build list of $version from the Purpur API"
+      return 1
+    fi
+    echo "Available builds of $version (newest 10): $(echo "$builds" | tail -n 10 | tr '\n' ' ')"
+    local build
+    read -r -p "Select build [$latest (latest)]: " build
+    build=${build:-$latest}
+    if ! echo "$builds" | grep -qxF "$build"; then
+      log "Unknown build: $build"
+      return 1
+    fi
+
+    if [ "$version" = "$cur_version" ] && [ "$build" = "$cur_build" ]; then
+      log "Already installed: $version build $build"
       return 0
     fi
 
-    log "Updating: $version build $build -> $latest"
+    echo
+    if version_older_than "$version" "$cur_version"; then
+      echo "WARNING: $version is older than the current version $cur_version."
+      echo "A world opened by a newer version may be broken by an older one."
+      echo "Restore a backup made before the upgrade if you need to go back."
+      local answer
+      read -r -p 'Type "downgrade" to continue: ' answer
+      if [ "$answer" != "downgrade" ]; then
+        log "Update cancelled"
+        return 1
+      fi
+    elif [ "$version" != "$cur_version" ]; then
+      echo "NOTE: Check that your plugins support $version before updating."
+    fi
+
+    local confirm
+    read -r -p "Update $cur_version build $cur_build -> $version build $build? [Y/n]: " confirm
+    case "$confirm" in
+      ""|y|Y|yes|YES) ;;
+      *) log "Update cancelled"; return 1 ;;
+    esac
+
+    log "Updating: $cur_version build $cur_build -> $version build $build"
     backup_command || { log "Backup failed. Update aborted."; return 1; }
-    install_build "$version" "$latest" || return 1
-    log "Updated: $version build $build -> $latest"
+    install_build "$version" "$build" || return 1
+    log "Updated: $cur_version build $cur_build -> $version build $build"
+}
+
+# Whether version $1 is older than version $2 (e.g. 1.21.11 < 26.1.2).
+version_older_than() {
+    [ "$1" != "$2" ] && [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -n 1)" = "$1" ]
 }
 
 # Retry on any error: connections to the API are occasionally reset.

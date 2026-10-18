@@ -135,10 +135,27 @@ $ make start
 $ make update
 ```
 
-- Stops the server, updates it to the latest build of the current game version, and starts it again. A backup is created before updating.
-  - サーバーを止めて、今のゲームバージョンの最新ビルドに更新し、もう一度起動します。更新の前にバックアップを作成します。
-- The downloaded jar is verified with the checksum from the Purpur API, and the update is cancelled if this image's Java cannot run it.
-  - ダウンロードした jar は Purpur の API のチェックサムで検証し、このイメージの Java で動かない場合は更新を中止します。
+- Stops the server, asks for the game version and build to install, and starts the server again. Press Enter at each prompt to update to the latest build of the current game version.
+  - サーバーを止めて、インストールするゲームバージョンとビルドを選び、もう一度起動します。各項目で Enter を押すと、今のゲームバージョンの最新ビルドに更新します。
+
+```
+Current: 26.3 build 2648
+Newest game version: 26.3
+Available versions (newest 10): ... 26.1.2 26.2 26.3
+Select version [26.3]:
+Available builds of 26.3 (newest 10): ... 2650 2651 2652
+Select build [2652 (latest)]:
+Update 26.3 build 2648 -> 26.3 build 2652? [Y/n]:
+```
+
+- Run it from a terminal. It is interactive and fails without one.
+  - 対話式なので、端末から実行してください。端末がない環境（cron など）では失敗します。
+- A backup is created before updating. The downloaded jar is verified with the checksum from the Purpur API, and the update is cancelled if this image's Java cannot run it.
+  - 更新の前にバックアップを作成します。ダウンロードした jar は Purpur の API のチェックサムで検証し、このイメージの Java で動かない場合は更新を中止します。
+- Choosing an older game version asks you to type `downgrade`. A world opened by a newer version may be broken by an older one, so restore a backup instead if possible. Older builds of the same game version can be chosen freely.
+  - 今より古いゲームバージョンを選ぶと、 `downgrade` の入力を求めます。新しいバージョンで開いたワールドは、古いバージョンで開くと壊れることがあるので、できればバックアップから復元してください。同じゲームバージョンの古いビルドは、確認なしで選べます。
+- When updating to a new game version, check that your plugins support it.
+  - 新しいゲームバージョンに上げるときは、プラグインが対応しているか確認してください。
 - The jar in use and the previous one are kept in the volume as `purpur-<version>-<build>.jar`. `purpur.jar` points to the one in use.
   - 使用中の jar と1つ前の jar は、ボリュームに `purpur-<バージョン>-<ビルド>.jar` として残ります。 `purpur.jar` は使用中の jar を指します。
 
